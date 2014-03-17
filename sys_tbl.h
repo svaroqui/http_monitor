@@ -36,30 +36,33 @@
 #pragma implementation
 #endif
 
-#define QQUEUE_NAME_LEN 255
 
+
+#define HTTP_NAME_LEN 256
+#define HTTP_CONTENT_LEN 200000
+#define HTTP_TYPE_LEN 128
 
 
 
 class http_content_row : public ilink {
 public:
-    String name;
-    String content;
+    char name[HTTP_NAME_LEN];
+    char content[HTTP_CONTENT_LEN];
+    char type[HTTP_TYPE_LEN];
 };
 
-TABLE *open_sysTbl(THD *thd, const char *tblName,
+
+TABLE *open_sysTbl(THD *thd,  const char *dbName,const char *tblName,
                    int tblNameLen, Open_tables_backup *tblBackup,
                    my_bool enableWrite, int *error);
-
+int getStatus(String *result);
+String getVariables(); 
 void close_sysTbl(THD *thd, TABLE *table, Open_tables_backup *tblBackup);
-
-//int retrRowAtPKId(TABLE *table, ulonglong id);
-
 void loadHttpContent(THD *thd,TABLE *fromThisTable);
-//int addHttpContentRow(http_content_row *thisRow, TABLE *toThisTable);
-//int updateHttpContentRow(http_content_row *thisRow, TABLE *toThisTable);
-
+void loadHttpVariables(THD *thd,TABLE *fromThisTable);
 http_content_row *getContent(const char *name);
-//bool checkIfResultTableExists(TABLE *inThisTable, char *database, char *tblName);
+void loadContent(THD *thd) ;
+void freeContent();
+
 
 #endif

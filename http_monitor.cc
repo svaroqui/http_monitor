@@ -13,21 +13,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "http_monitor.h"
 
+
+#include "http_monitor.h"
+#include "sql_show.h"
+#include "handler.h" 
+#include "set_var.h"
 
 /* MySQL functions/variables not declared in mysql_priv.h */
 int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_status(THD *thd, TABLE_LIST *tables, COND *cond);
+
+
+
 extern ST_SCHEMA_TABLE schema_tables[];
 
 
 
 
 namespace http_monitor {
-    String LAST_REPORT;
+    String HTTP_REPORT;
+   
     int GALERA_STATUS = 0;
     int REPL_STATUS = 0;
+    int HISTO_INDEX = 0;
     char server_uid_buf[SERVER_UID_SIZE + 1]; ///< server uid will be written here
 
     /* backing store for system variables */
@@ -57,24 +66,28 @@ namespace http_monitor {
     static PSI_thread_info thread_list[] ={
         {&key_sender_thread, "sender_thread", 0}};
 #endif
+    static COND * make_http_cond_for_info_schema(COND *cond, TABLE_LIST *table);
+    static int fill_http_variables(THD *thd, TABLE_LIST *tables, COND *cond);
 
     Url **urls; ///< list of urls to send the report to
     uint url_count;
-
+   #define mariadb_dyncol_value_init(V) (V)->type= DYN_COL_NULL
     ST_SCHEMA_TABLE *i_s_http_monitor; ///< table descriptor for our I_S table
-
+    
     /*
       the column names *must* match column names in GLOBAL_VARIABLES and
       GLOBAL_STATUS tables otherwise condition pushdown below will not work
      */
-    static ST_FIELD_INFO http_monitor_fields[] ={
+  
+     static ST_FIELD_INFO http_monitor_fields[] ={
         {"VARIABLE_NAME", 255, MYSQL_TYPE_STRING, 0, 0, 0, 0},
         {"VARIABLE_VALUE", 1024, MYSQL_TYPE_STRING, 0, 0, 0, 0},
         {"VARIABLE_TYPE", 1, MYSQL_TYPE_TINY, 0, 0, 0, 0},
-        {"VARIABLE_SERIE", 252, MYSQL_TYPE_BLOB, 0, 0, 0, 0},
         {0, 0, MYSQL_TYPE_NULL, 0, 0, 0, 0}
     };
-
+    
+    
+    
     static COND * const OOM = (COND*) 1;
 
     /**
@@ -194,6 +207,10 @@ namespace http_monitor {
     static LEX_STRING status_filter[] = {
         {0, 0}};
 
+   
+    
+
+
     /**
       Fill our I_S table with data
 
@@ -204,6 +221,8 @@ namespace http_monitor {
       from the utils.cc - to get the data that aren't available in the
       I_S.GLOBAL_VARIABLES and I_S.GLOBAL_STATUS.
      */
+
+ 
 
     int fill_http_monitor(THD *thd, TABLE_LIST *tables, COND *unused) {
         int res;
@@ -226,24 +245,26 @@ namespace http_monitor {
 
         return res;
     }
-
+    
+    
     /**
        plugin initialization function
      */
     static int init(void *p) {
-
-        i_s_http_monitor = (ST_SCHEMA_TABLE*) p;
         /* initialize the I_S descriptor structure */
+     
+        i_s_http_monitor = (ST_SCHEMA_TABLE*) p;
         i_s_http_monitor->fields_info = http_monitor_fields; ///< field descriptor
         i_s_http_monitor->fill_table = fill_http_monitor; ///< how to fill the I_S table
         i_s_http_monitor->idx_field1 = 0; ///< virtual index on the 1st col
-
-#ifdef HAVE_PSI_INTERFACE
-#define PSI_register(X) \
-  if(PSI_server) PSI_server->register_ ## X("http_monitor", X ## _list, array_elements(X ## _list))
-#else
-#define PSI_register(X) /* no-op */
-#endif
+      
+        
+        #ifdef HAVE_PSI_INTERFACE
+        #define PSI_register(X) \
+          if(PSI_server) PSI_server->register_ ## X("http_monitor", X ## _list, array_elements(X ## _list))
+        #else
+        #define PSI_register(X) /* no-op */
+        #endif
 
         PSI_register(mutex);
         PSI_register(cond);
@@ -329,7 +350,7 @@ namespace http_monitor {
             mysql_cond_signal(&sleep_condition);
             mysql_mutex_unlock(&sleep_mutex);
             pthread_join(sender_thread, NULL);
-
+            pthread_join(http_thread, NULL);
             mysql_mutex_destroy(&sleep_mutex);
             mysql_cond_destroy(&sleep_condition);
 

@@ -150,11 +150,11 @@ struct ll { struct ll *prev, *next; };
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 #define MAX_REQUEST_SIZE 16384
-#define IOBUF_SIZE 8192
+#define IOBUF_SIZE 16384
 #define MAX_PATH_SIZE 8192
 #define LUA_SCRIPT_PATTERN "**.lp$"
 #define DEFAULT_CGI_PATTERN "**.cgi$|**.pl$|**.php$"
-#define CGI_ENVIRONMENT_SIZE 4096
+#define CGI_ENVIRONMENT_SIZE 16384
 #define MAX_CGI_ENVIR_VARS 64
 #define ENV_EXPORT_TO_CGI "MONGOOSE_CGI"
 #define PASSWORDS_FILE_NAME ".htpasswd"

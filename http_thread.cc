@@ -618,7 +618,7 @@ namespace http_monitor {
     static size_t http_needed_size = 20480;
 
 
-    static const time_t http_interval = 1; ///< in seconds (one week)
+    static const time_t http_interval = 1; ///< in seconds 
 
     /**
      * Handler http answer 
@@ -635,7 +635,7 @@ namespace http_monitor {
                     );
             mg_write(conn, logo, sizeof (logo));
 
-        } else if (!strcmp(conn->uri, "/infos")) {
+        } else if (!strcmp(conn->uri, "/system")) {
 
             // Send HTTP reply to the client
 
@@ -644,14 +644,13 @@ namespace http_monitor {
                     "Content-Type: text/plain\r\n"
                     "Content-Length: %d\r\n" // Always set Content-Length
                     "Connection: close\r\n\r\n",
-                    LAST_REPORT.length()
+                   HTTP_REPORT.length()
                     );
-            //   mg_send_header(conn,"Content-Type","text/plain");
-            //   mg_send_header(conn,"Connection","close");
-            mg_write(conn, LAST_REPORT.ptr(), LAST_REPORT.length());
+            
+            mg_write(conn, HTTP_REPORT.ptr(), HTTP_REPORT.length());
 
             return 1;
-
+      
         } else if (!strcmp(conn->uri, "/wsrep")) {
             if (GALERA_STATUS == 1) {
 
@@ -701,20 +700,32 @@ namespace http_monitor {
 
             http_content_row *content = getContent(conn->uri);
             if (content != NULL) {
-                mg_printf(conn,
+               mg_printf(conn,
                         "HTTP/1.1 200 OK\r\n"
-                        "Content-Type: text/javascript;charset=UTF-8\r\n\r\n"
+                        "Content-Type: %s;charset=UTF-8\r\n"
                         "Content-Length: %d\r\n" // Always set Content-Length
                         "Connection: close\r\n\r\n",
-                        content->content.length());
-
-                String test;
-                test.copy(content->content);
-                mg_write(conn, test.ptr(), content->content.length());
-
+                        content->type,
+                        strlen(content->content));
+  
+               
+                mg_write(conn, content->content, strlen(content->content));
+                mg_printf(conn,"\r\n");
+                   
             } else {
                 const char *help;
-                help = "<html><body><a href=\"/logo\">logo</a><BR><a href=\"/infos\">infos</a><BR><a href=\"/replication\">replication</a><BR><a href=\"/wsrep\">wsrep</a><BR><a href=\"/javascripts/jqwidgets/jqxbuttons.js\">http_contents</a><BR></body></html>\r\n";
+                help = "<html><body><a href=\"/logo\">logo</a><BR>"
+                        "<a href=\"/system\">system</a><BR>"
+                        "<a href=\"/variables\">variables</a><BR>"
+                        "<a href=\"/status\">status</a><BR>"          
+                        "<a href=\"/process\">process</a><BR>"
+                        "<a href=\"/tablestat\">tablestat</a><BR>"
+                        "<a href=\"/indexstat\">indexstat</a><BR>"
+                        "<a href=\"/tables\">tables</a><BR>"
+                        "<a href=\"/replication\">replication</a><BR>"
+                        "<a href=\"/wsrep\">wsrep</a><BR>"
+                        "<a href=\"/javascripts/jqwidgets/jqxbuttons.js\">http_contents</a><BR>"
+                        "</body></html>\r\n";
                 mg_printf(conn,
                         "HTTP/1.1 200 OK\r\n"
                         "Content-Type: text/html\r\n"
@@ -724,7 +735,9 @@ namespace http_monitor {
                         strlen(help)
                         );
                 mg_write(conn, help, strlen(help));
+                
             }
+            delete content;
 
         }
 
@@ -763,28 +776,11 @@ namespace http_monitor {
 
      */
     static bool going_down() {
-        mg_destroy_server(&server);
+        
         return shutdown_plugin || shutdown_in_progress || (thd_http && thd_http->killed);
     }
 
-    /**
-      just like sleep, but waits on a condition and checks "plugin shutdown" status
-     */
-    static int slept_ok(time_t sec) {
-        struct timespec abstime;
-        int ret = 0;
-
-        set_timespec(abstime, sec);
-
-        mysql_mutex_lock(&sleep_mutex);
-        while (!going_down() && ret != ETIMEDOUT)
-            ret = mysql_cond_timedwait(&sleep_condition, &sleep_mutex, &abstime);
-        mysql_mutex_unlock(&sleep_mutex);
-
-        return !going_down();
-    }
-
-    /**
+    /*
       background http thread
      */
     pthread_handler_t background_http_thread(void *p) {
@@ -800,7 +796,7 @@ namespace http_monitor {
         mg_set_option(server, "listening_port", "8080");
         mg_set_request_handler(server, &begin_request_handler);
 
-        while (1) {
+        while (!going_down()) {
             mg_poll_server(server, 10);
             //slept_ok(1);
             // sql_print_error( "http_monitor_init: reading http_content");

@@ -19,13 +19,18 @@
 
 namespace http_monitor {
 
-extern String LAST_REPORT;
+extern String HTTP_REPORT;
 extern int GALERA_STATUS;
 extern int REPL_STATUS;
+extern int HISTO_INDEX;
+
 static char *port="8080";
 int fill_plugin_version(THD *thd, TABLE_LIST *tables);
 int fill_http_monitor(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_misc_data(THD *thd, TABLE_LIST *tables);
+//static int fill_http_variables(THD *thd, TABLE_LIST *tables, COND *cond);
+
+
 int fill_linux_info(THD *thd, TABLE_LIST *tables);
 static int begin_request_handler(struct mg_connection *conn); 
 static const int SERVER_UID_SIZE= 29;
@@ -37,8 +42,7 @@ extern struct mg_request_info *mg_get_request_info(struct mg_connection *);
 extern int mg_printf(struct mg_connection *,
               PRINTF_FORMAT_STRING(const char *fmt), ...) PRINTF_ARGS(2, 3);
 */
- extern ST_SCHEMA_TABLE *i_s_http_monitor;
-
+extern ST_SCHEMA_TABLE *i_s_http_monitor;
 extern ulong send_timeout, send_retry_wait;
 
 pthread_handler_t background_thread(void *arg);

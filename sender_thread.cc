@@ -18,6 +18,7 @@
 #include <sql_parse.h>
 #include <time.h>
 #include "sys_tbl.h"
+#include <ma_dyncol.h>
 
 namespace http_monitor {
 static THD *thd= 0;                ///< background thread thd
@@ -26,11 +27,11 @@ static my_thread_id thd_thread_id; ///< its thread_id
 static size_t needed_size= 20480;
 
 static const time_t startup_interval= 10;     ///< in seconds (5 minutes)
-static const time_t first_interval= 30;   ///< in seconds (one day)
+static const time_t first_interval= 10;   ///< in seconds (one day)
 
 //static const time_t first_interval= 60*60*24;   ///< in seconds (one day)
 //static const time_t interval= 60*60*24*7;       ///< in seconds (one week)
-static const time_t interval= 60;       ///< in seconds (one week)
+static const time_t interval= 10;       ///< in seconds (one week)
 
 /**
   reads the rows from a table and puts them, concatenated, in a String
@@ -83,11 +84,12 @@ static int table_to_json(TABLE *table, String *result)
   char buff1[MAX_FIELD_WIDTH], buff2[MAX_FIELD_WIDTH];
   String str1(buff1, sizeof(buff1), system_charset_info);
   String str2(buff2, sizeof(buff2), system_charset_info);
-
+ 
   res= table->file->ha_rnd_init(1);
 
   dbug_tmp_use_all_columns(table, table->read_set);
   result->append("{\"information\":[\n");
+  HISTO_INDEX ++;
   GALERA_STATUS=0;
   REPL_STATUS=0;
   while(!res && !table->file->ha_rnd_next(table->record[0]))
@@ -95,25 +97,27 @@ static int table_to_json(TABLE *table, String *result)
     table->field[0]->val_str(&str1);
     table->field[1]->val_str(&str2);
     
-
     if (!strcmp(str1.ptr(), "WSREP_ON") && !strcmp(str2.ptr(), "ON") && !strcmp(str2.ptr(), "4")) GALERA_STATUS=1;
     if (!strcmp(str1.ptr(), "SLAVE_RUNNING") && !strcmp(str2.ptr(), "ON")) REPL_STATUS=1;  
-   
+    
     if (result->reserve(str1.length() + str2.length() + 25))
       res= 1;
     else
     {
-      result->qs_append("{\"name\":\"");
-      result->qs_append(str1.ptr(), str1.length());
-      result->qs_append("\",\"value\":\"");
-      result->qs_append(str2.ptr(), str2.length());
-      result->qs_append("\"},\n");
+      if ( (table->field[2]->val_int()) == 4){
+        result->qs_append("{\"name\":\"");
+        result->qs_append(str1.ptr(), str1.length());
+        result->qs_append("\",\"value\":\"");
+        result->qs_append(str2.ptr(), str2.length());
+        result->qs_append("\"},\n");
+       }
     }
   }
-   result->chop();
-   result->chop();
    
-  res = res || result->append("]}\n");
+   result->chop();
+   result->chop();
+    res = res || result->append("]}\n");
+
 
   /*
     Note, "|=" and not "||" - because we want to call ha_rnd_end()
@@ -176,23 +180,12 @@ static int prepare_for_fill(TABLE_LIST *tables)
     return 1;
 
   tables->table->pos_in_table_list= tables;
-  int error = 0;
-        Open_tables_backup backup;
-        sql_print_error( "http_monitor_init: before opening http_content");
-        TABLE *tbl = open_sysTbl(thd, "http_contents", strlen("http_contents"), &backup, false, &error);
-         sql_print_error( "http_monitor_init: After opening http_content");
-        if (error) {
-            sql_print_error( "http_monitor_init: error in opening http_content sys table: error %i\n", error);
-        } else {
-             //sql_print_error( "http_monitor_init: Before loading http_content");
-            loadHttpContent(thd,tbl);
-            //sql_print_error( "http_monitor_init: After loading http_content");
-        }
-       close_sysTbl(thd, tbl, &backup);
-    
-  
   return 0;
 }
+
+
+
+
 
 /**
   Try to detect if this thread is going down
@@ -285,12 +278,13 @@ static void send_report(const char *when)
       goto ret;
 
     needed_size= (size_t)(str.length() * 1.1);
-
+     loadContent(thd);
+ 
     free_tmp_table(thd, tables.table);
     tables.table= 0;
   }
 
-  LAST_REPORT.copy(str);
+  HTTP_REPORT.copy(str);
   
   
 ret:
