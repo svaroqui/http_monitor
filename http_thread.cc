@@ -705,11 +705,11 @@ namespace http_monitor {
                         "Content-Type: %s;charset=UTF-8\r\n"
                         "Content-Length: %d\r\n" // Always set Content-Length
                         "Connection: close\r\n\r\n",
-                        content->type,
-                        strlen(content->content));
+                        content->type.ptr(),
+                       content->content.length());
   
                
-                mg_write(conn, content->content, strlen(content->content));
+                mg_write(conn, content->content.ptr(), content->content.length());
                 mg_printf(conn,"\r\n");
                    
             } else {
@@ -737,7 +737,7 @@ namespace http_monitor {
                 mg_write(conn, help, strlen(help));
                 
             }
-            delete content;
+       //     delete content;
 
         }
 

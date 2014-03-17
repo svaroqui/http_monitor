@@ -81,7 +81,9 @@ void close_sysTbl(THD *thd, TABLE *table, Open_tables_backup *tblBackup) {
 
 void loadHttpContent(THD *thd, TABLE *fromThisTable) {
     int error;
-  
+    String newString1;
+    String newString2;
+    String newString3;
     mysql_mutex_lock(&LOCK_content);
 
     READ_RECORD read_record_info;
@@ -94,23 +96,18 @@ void loadHttpContent(THD *thd, TABLE *fromThisTable) {
     //sql_print_error("loadHttpContent: empty");
     while (!(error = read_record_info.read_record(&read_record_info))) {
         http_content_row *aRow = new http_content_row;
-          String newString1;
-          String newString2;
-          String newString3;
+          
         //sql_print_error("loop:  read_record_info");
          fromThisTable->field[0]->val_str(&newString1);
         fromThisTable->field[1]->val_str(&newString2);
         fromThisTable->field[2]->val_str(&newString3);
-         strcpy(aRow->name,newString1.c_ptr());
-         strcpy(aRow->content,newString2.c_ptr());
-         strcpy(aRow->type,newString3.c_ptr());
-      //  aRow->name.copy(newString1);
-      //  aRow->content.copy(newString2);
-      //  aRow->type.copy(newString3);
-        newString1.free();
-     newString2.free();
-     newString3.free();
-       
+      //   strcpy(aRow->name,newString1.c_ptr());
+      //   strcpy(aRow->content,newString2.c_ptr());
+      //   strcpy(aRow->type,newString3.c_ptr());
+        aRow->name.copy(newString1);
+        aRow->content.copy(newString2);
+        aRow->type.copy(newString3);
+      
         contents.push_back(aRow);
         
     }
@@ -155,6 +152,7 @@ void loadContent(THD *thd) {
     int error;
     
     thd->client_capabilities |= CLIENT_MULTI_STATEMENTS;
+   
     runQuery(thd,(char *) "set group_concat_max_len=1024*1024");
     runQuery(thd,(char *) "replace into mysql.http_contents select '/variables',  (select CONCAT('{\"variables\":[\\n' , GROUP_CONCAT(CONCAT('{\"name\":\"',VARIABLE_NAME,'\",\"value\":\"', VARIABLE_VALUE,'\"}'    ) separator ',\\n'),'\\n]}' ) from information_schema.GLOBAL_VARIABLES WHERE VARIABLE_NAME<>'FT_BOOLEAN_SYNTAX' ) , 'text/plain' ;");
     runQuery(thd,(char *) "replace into mysql.http_contents select '/status',  (select CONCAT('{\"status\":[\\n' , GROUP_CONCAT(CONCAT('{\"name\":\"',VARIABLE_NAME,'\",\"value\":\"', VARIABLE_VALUE,'\"}'    ) separator ',\\n'),'\\n]}') from information_schema.GLOBAL_STATUS), 'text/plain' ;");
@@ -304,6 +302,7 @@ void loadContent(THD *thd) {
             "\"COM_UPDATE_MULTI\":\"',COALESCE(COLUMN_GET(status,'COM_UPDATE_MULTI' as INTEGER),'1')/COLUMN_GET(status,'UPTIME' as INTEGER),'\","
             "\"COM_INSERT\":\"',COALESCE(COLUMN_GET(status,'COM_INSERT' as INTEGER),'1')/COLUMN_GET(status,'UPTIME' as INTEGER),'\"}'    )   separator ',\\n'),'\\n]}') from mysql.http_status_history ORDER BY COLUMN_GET(status,'date' as datetime) ), 'text/plain';");
          
+      
          
          
         Open_tables_backup backup;
@@ -319,7 +318,7 @@ http_content_row *getContent(const char *name) {
     http_content_row *aRow;
     I_List_iterator<http_content_row> contentsIter(contents);
     while ((aRow = contentsIter++)) {
-        if (strcmp(aRow->name, name) == 0) {
+        if (strcmp(aRow->name.ptr(), name) == 0) {
             return aRow;
         }
     }
