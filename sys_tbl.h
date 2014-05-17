@@ -28,41 +28,55 @@
 
 #define MYSQL_SERVER 1
 
-#include <sql_class.h>
+
+//#include <sql_class.h>
 #include <mysql_time.h>
 #include <my_global.h>
+//#include <sql_common.h>
+#include <mysql.h>
 
+#include <string>
+#include <iostream>
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
 #endif
 
 
 
-#define HTTP_NAME_LEN 256
-#define HTTP_CONTENT_LEN 200000
-#define HTTP_TYPE_LEN 128
-
-
+namespace http_monitor {
 
 class http_content_row : public ilink {
 public:
-    char name[HTTP_NAME_LEN];
-    char content[HTTP_CONTENT_LEN];
-    char type[HTTP_TYPE_LEN];
+    std::string name;
+    std::string content;
+    std::string type;
+    virtual ~http_content_row(){
+     //    free( &content); 
+    }
 };
 
 
-TABLE *open_sysTbl(THD *thd,  const char *dbName,const char *tblName,
+class http_query : public ilink {
+public:
+    String query;
+    virtual ~http_query(){
+     //    free( &content); 
+    }
+};
+
+
+/*TABLE *open_sysTbl(THD *thd,  const char *dbName,const char *tblName,
                    int tblNameLen, Open_tables_backup *tblBackup,
                    my_bool enableWrite, int *error);
-int getStatus(String *result);
-String getVariables(); 
 void close_sysTbl(THD *thd, TABLE *table, Open_tables_backup *tblBackup);
-void loadHttpContent(THD *thd,TABLE *fromThisTable);
-void loadHttpVariables(THD *thd,TABLE *fromThisTable);
-http_content_row *getContent(const char *name);
+void loadHttpContent(THD *thd,TABLE *fromThisTable);*/
+
+http_content_row *getContent(String *name);
 void loadContent(THD *thd) ;
 void freeContent();
-
-
+int updateContent(MYSQL *conn);
+int loadHttpContentConn();
+static my_bool sql_connect(MYSQL *mysql, uint wait);
+void finish_with_error(MYSQL *conn, String *query);
 #endif
+}

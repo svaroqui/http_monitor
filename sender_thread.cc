@@ -19,6 +19,10 @@
 #include <time.h>
 #include "sys_tbl.h"
 #include <ma_dyncol.h>
+#include <string>
+#include <iostream>
+
+
 
 namespace http_monitor {
 static THD *thd= 0;                ///< background thread thd
@@ -229,7 +233,7 @@ static void send_report(const char *when)
 {
   TABLE_LIST tables;
   int i, last_todo;
-  Url **todo= (Url**)alloca(url_count*sizeof(Url*));
+ 
   String str; 
   str.alloc(needed_size); // preallocate it to avoid many small mallocs
    
@@ -251,8 +255,6 @@ static void send_report(const char *when)
     str.append('\n');
     str.append(STRING_WITH_LEN("FEEDBACK_USER_INFO"));
     str.append('\t');
-    str.append(user_info);
-    str.append('\n');
     str.append('\n');
   }
   else
@@ -265,9 +267,7 @@ static void send_report(const char *when)
     */
     if (!(thd= new THD()))
       return;
-    
-     
-       
+      
     if (prepare_for_fill(&tables))
       goto ret;
 
@@ -280,11 +280,31 @@ static void send_report(const char *when)
     needed_size= (size_t)(str.length() * 1.1);
      loadContent(thd);
  
+    HTTP_REPORT.copy(str);
+   
+    if ( http_monitor::history_length-1== http_monitor::history_index) {
+    http_monitor::Server **todo= (http_monitor::Server**)alloca(http_monitor::smtp_servers_count*sizeof(http_monitor::Server*));
+    memcpy(todo, http_monitor::smtp_servers, http_monitor::smtp_servers_count*sizeof(http_monitor::Server*));
+   
+    int i, last_todo;
+    last_todo= http_monitor::smtp_servers_count -1 ;
+    String strHistory;
+    strHistory.append((char*) "/history");
+    http_content_row *content = getContent(&strHistory);
+    if (error_log)
+        sql_print_information("http_monitor *send_report*: sending from mail index %ul  ",http_monitor::smtp_servers_count );
+    for (i= 0; i <= last_todo;)
+    {
+      http_monitor::Server *url= todo[i];
+      if(send_mail)
+        url->send(content->content.c_str(), content->content.length());
+      i++;
+    }
+    }
     free_tmp_table(thd, tables.table);
     tables.table= 0;
   }
 
-  HTTP_REPORT.copy(str);
   
   
 ret:

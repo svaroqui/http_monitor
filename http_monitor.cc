@@ -19,6 +19,9 @@
 #include "sql_show.h"
 #include "handler.h" 
 #include "set_var.h"
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 
 /* MySQL functions/variables not declared in mysql_priv.h */
 int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond);
@@ -33,16 +36,44 @@ extern ST_SCHEMA_TABLE schema_tables[];
 
 namespace http_monitor {
     String HTTP_REPORT;
-   
     int GALERA_STATUS = 0;
     int REPL_STATUS = 0;
     int HISTO_INDEX = 0;
     char server_uid_buf[SERVER_UID_SIZE + 1]; ///< server uid will be written here
-
+  
     /* backing store for system variables */
-    static char *server_uid = server_uid_buf, *url;
-    char *user_info;
-    ulong send_timeout, send_retry_wait;
+    static char *server_uid = server_uid_buf; 
+    char *conn_user = 0;
+    char *conn_password = 0;
+    char *conn_host = 0;
+    char *conn_socket = 0;
+    char *smtp_email_from=0;
+    char *smtp_email_to=0;
+    char *smtp_certificat=0;
+    char *node_name=0;
+    char *node_group=0;
+    char *port = 0;
+    char *aes_key = 0; 
+    static char *smtp_address = 0;
+    static char *node_address = 0; 
+    static char *http_address = 0; 
+    char error_log;
+    char send_mail;
+    char *smtp_user = 0;
+    char *smtp_password = 0;
+    ulong conn_port=3306; 
+    ulong send_timeout; 
+    ulong refresh_rate;
+    ulong history_length;
+    ulong history_index;
+   
+    Server **mysql_servers; ///< list of servers to monitor
+    uint mysql_servers_count;
+    Server **smtp_servers; ///< list of servers to send the report to by smtp
+    uint smtp_servers_count;
+    Server **http_servers; ///< list of servers to send the report to by html
+    uint http_servers_count;
+
     /**
       these three are used to communicate the shutdown signal to the
       background thread
@@ -68,10 +99,7 @@ namespace http_monitor {
 #endif
     static COND * make_http_cond_for_info_schema(COND *cond, TABLE_LIST *table);
     static int fill_http_variables(THD *thd, TABLE_LIST *tables, COND *cond);
-
-    Url **urls; ///< list of urls to send the report to
-    uint url_count;
-   #define mariadb_dyncol_value_init(V) (V)->type= DYN_COL_NULL
+#define mariadb_dyncol_value_init(V) (V)->type= DYN_COL_NULL
     ST_SCHEMA_TABLE *i_s_http_monitor; ///< table descriptor for our I_S table
     
     /*
@@ -90,6 +118,109 @@ namespace http_monitor {
     
     static COND * const OOM = (COND*) 1;
 
+    
+    
+    
+ 
+#define SSL_MUTEX_TYPE       pthread_mutex_t
+#define SSL_MUTEX_SETUP(x,y) pthread_mutex_init(&(x),&(y))
+#define SSL_MUTEX_CLEANUP(x) pthread_mutex_destroy(&(x))
+#define SSL_MUTEX_LOCK(x)    pthread_mutex_lock(&(x))
+#define SSL_MUTEX_UNLOCK(x)  pthread_mutex_unlock(&(x))
+#define SSL_THREAD_ID        pthread_self( )
+ 
+static SSL_MUTEX_TYPE  *pMutexSSL;
+ 
+static void           SSLLockingFunction            (int mode, int n, const char * file, int line);
+static unsigned long  SSLID_Function                (void);
+ 
+
+
+/*============================================================================*/
+/*
+* InitOpenSSL
+* /brief Initialisatioon de OpenSSL
+ * A appeler une fois en debut de programme
+* /param[in] bMultiThread indique si le programme possede plusieurs threads accedant aux API OpenSSL pour initialiser les mutex utilises par OpenSSL
+* /return  true=OK false =KO
+*/
+ 
+bool InitOpenSSL(bool bMultiThread)
+   {
+   pthread_mutexattr_t MutAttr;
+ 
+   SSL_load_error_strings();
+   SSL_library_init();
+ 
+   if(bMultiThread)
+      {
+      if((pMutexSSL = (SSL_MUTEX_TYPE *)OPENSSL_malloc(CRYPTO_num_locks( ) * sizeof(SSL_MUTEX_TYPE))) == (SSL_MUTEX_TYPE *)NULL)
+         {
+         return false;
+         }
+ 
+      for (int i = 0; i < CRYPTO_num_locks(); i++)
+         {
+         pthread_mutexattr_init( &MutAttr );
+         pthread_mutexattr_settype( &MutAttr,PTHREAD_MUTEX_NORMAL/*PTHREAD_MUTEX_ERRORCHECK_NP*/);
+         SSL_MUTEX_SETUP(pMutexSSL[i],MutAttr);
+         pthread_mutexattr_destroy( &MutAttr );
+         }
+ 
+      CRYPTO_set_id_callback(SSLID_Function);
+      CRYPTO_set_locking_callback(SSLLockingFunction);
+      }
+ 
+   return true; 
+   }
+ 
+/*============================================================================*/
+/*
+* CloseOpenSSL
+* /brief Nettoyage des allocations effectuees par InitOpenSSL
+* A appeler une fois en fin de programme
+*/
+ 
+void CloseOpenSSL()
+   {
+   if(pMutexSSL)
+      {
+      CRYPTO_set_id_callback(NULL);
+      CRYPTO_set_locking_callback(NULL);
+ 
+      for (int i = 0; i < CRYPTO_num_locks( ); i++) SSL_MUTEX_CLEANUP(pMutexSSL[i]);
+ 
+      OPENSSL_free(pMutexSSL);
+      pMutexSSL = (SSL_MUTEX_TYPE *)NULL;
+      }
+  
+   }
+ 
+ 
+/*============================================================================*/
+ 
+static void SSLLockingFunction(int mode, int n, const char * file, int line)
+   {
+   if (mode & CRYPTO_LOCK)
+      {
+      SSL_MUTEX_LOCK (pMutexSSL[n]);
+      }
+   else
+      {
+      SSL_MUTEX_UNLOCK(pMutexSSL[n]);
+      }
+   }
+ 
+/*============================================================================*/
+ 
+  static unsigned long SSLID_Function(void)
+   {
+   return((unsigned long)SSL_THREAD_ID);
+   }
+
+
+    
+    
     /**
       Generate the COND tree for the condition pushdown
 
@@ -207,12 +338,9 @@ namespace http_monitor {
     static LEX_STRING status_filter[] = {
         {0, 0}};
 
-   
-    
-
 
     /**
-      Fill our I_S table with data
+      Fill I_S table with data
 
       This function works by invoking fill_variables() and
       fill_status() of the corresponding I_S tables - to have
@@ -270,14 +398,11 @@ namespace http_monitor {
         PSI_register(cond);
         PSI_register(thread);
 
-
-        // List of options. Last element must be NULL.
-
-
-
+        InitOpenSSL(true);        
+       
         // Prepare callbacks structure. We have only one callback, the rest are NULL.
         send_timeout = 60;
-        send_retry_wait = 60;
+        refresh_rate = 60;
 
         const char *options[] = {"listening_ports", port, NULL};
 
@@ -286,34 +411,97 @@ namespace http_monitor {
 
         prepare_linux_info();
 
-        url_count = 0;
-        if (*url) {
-            // now we split url on spaces and store them in Url objects
+        mysql_servers_count = 0;
+        if (*node_address) {
+            // now we split node_address on spaces and store them in Url objects
             int slot;
             char *s, *e;
 
-            for (s = url, url_count = 1; *s; s++)
-                if (*s == ' ')
-                    url_count++;
-
-            urls = (Url **) my_malloc(url_count * sizeof (Url*), MYF(MY_WME));
-            if (!urls)
+            for (s = node_address, mysql_servers_count = 1; *s; s++)
+                if (*s == ',')
+                    mysql_servers_count++;
+            mysql_servers = (Server **) my_malloc(mysql_servers_count * sizeof (Server*), MYF(MY_WME));
+            if (!node_address)
                 return 1;
 
-            for (s = url, e = url + 1, slot = 0; e[-1]; e++)
-                if (*e == 0 || *e == ' ') {
-                    if (e > s && (urls[slot] = Url::create(s, e - s)))
-                        slot++;
-                    else {
-                        if (e > s)
-                            sql_print_error("http_monitor plugin: invalid url '%.*s'", (int) (e - s), s);
-                        url_count--;
+            for (s = node_address, e = node_address + 1, slot = 0; e[-1]; e++) {
+                if (*e == 0 || *e == ',') {
+                       sql_print_information("http_monitor plugin: Adding database server to monitoring '%.*s'", (int) (e - s), s);
+                    
+                    if (e > s && (mysql_servers[slot] = Server::create(s, e - s))){ 
+                       
+                       slot++;
+                     } 
+                    else { 
+                        if (e > s){
+                           
+                        }
+                        mysql_servers_count--;
                     }
                     s = e + 1;
                 }
 
+             }
+             
+            
+            if (*smtp_address) {
+            smtp_servers_count = 0 ; 
+            for (s = smtp_address, smtp_servers_count = 1; *s; s++)
+                if (*s == ',')
+                    smtp_servers_count++;
+            smtp_servers = (Server **) my_malloc(smtp_servers_count * sizeof (Server*), MYF(MY_WME));
+            if (!smtp_address)
+                return 1;
 
-            // create a background thread to handle urls, if any
+            for (s = smtp_address, e = smtp_address + 1, slot = 0; e[-1]; e++) {
+                if (*e == 0 || *e == ',') {
+                    sql_print_information("http_monitor plugin: Adding mail server to report '%.*s'", (int) (e - s), s);
+                       
+                    if (e > s && (smtp_servers[slot] = Server::create(s, e - s))){ 
+                       slot++;
+                    } 
+                    else { 
+                        if (e > s){
+                         
+                        }
+                        smtp_servers_count--;
+                    }
+                    s = e + 1;
+                }
+
+             }
+            }
+            
+            
+             if (*http_address) {
+            http_servers_count = 0 ; 
+            for (s = http_address, http_servers_count = 1; *s; s++)
+                if (*s == ',')
+                    http_servers_count++;
+            http_servers = (Server **) my_malloc(http_servers_count * sizeof (Server*), MYF(MY_WME));
+            if (!http_address)
+                return 1;
+
+            for (s = http_address, e = http_address + 1, slot = 0; e[-1]; e++) {
+                if (*e == 0 || *e == ',') {
+                    sql_print_information("http_monitor plugin: Adding mail server to report '%.*s'", (int) (e - s), s);
+                       
+                    if (e > s && (http_servers[slot] = Server::create(s, e - s))){ 
+                       slot++;
+                    } 
+                    else { 
+                        if (e > s){
+                         
+                        }
+                        http_servers_count--;
+                    }
+                    s = e + 1;
+                }
+
+             }
+            }
+      
+            // create a background thread to handle node_address, if any
 
             mysql_mutex_init(0, &sleep_mutex, 0);
             mysql_cond_init(0, &sleep_condition, 0);
@@ -344,7 +532,8 @@ namespace http_monitor {
        plugin deinitialization function
      */
     static int free(void *p) {
-        if (url_count) {
+        if (mysql_servers_count) {
+            CloseOpenSSL();
             mysql_mutex_lock(&sleep_mutex);
             shutdown_plugin = true;
             mysql_cond_signal(&sleep_condition);
@@ -353,10 +542,19 @@ namespace http_monitor {
             pthread_join(http_thread, NULL);
             mysql_mutex_destroy(&sleep_mutex);
             mysql_cond_destroy(&sleep_condition);
-
-            for (uint i = 0; i < url_count; i++)
-                delete urls[i];
-            my_free(urls);
+   /*for (uint j = 0; j < smtp_servers_count; j++)
+            {   
+                sql_print_error("smtp_servers");
+                delete smtp_servers[j];
+               
+           } 
+     */    
+            for (uint i = 0; i < mysql_servers_count; i++)
+             {       delete mysql_servers[i];
+               sql_print_error("mysql_servers");
+           } 
+            my_free(mysql_servers);
+            my_free(smtp_servers);
         }
         return 0;
     }
@@ -364,36 +562,98 @@ namespace http_monitor {
 
 
 
-#ifdef HAVE_OPENSSL
-#define DEFAULT_PROTO "https://"
-#else
-#define DEFAULT_PROTO "http://"
-#endif
-
-    static MYSQL_SYSVAR_STR(server_uid, server_uid,
+     static MYSQL_SYSVAR_STR(server_uid, server_uid,
             PLUGIN_VAR_READONLY | PLUGIN_VAR_NOCMDOPT,
             "Automatically calculated server unique id hash.", NULL, NULL, 0);
-    static MYSQL_SYSVAR_STR(user_info, user_info,
-            PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
-            "User specified string that will be included in the report.",
-            NULL, NULL, "");
-    static MYSQL_SYSVAR_STR(port, port, PLUGIN_VAR_RQCMDARG,
+     static MYSQL_SYSVAR_STR(node_address, node_address, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Comma separated URLs to send the http_monitor report to.", NULL, NULL,
+             "mysql://127.0.0.1:3306/cluster1,mysql://127.0.0.1:3306/cluster2");
+     static MYSQL_SYSVAR_STR(http_address, http_address, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Comma separated URLs to send the http_monitor report to.", NULL, NULL,
+             "http://88.181.24.43:80/feedback");
+     static MYSQL_SYSVAR_STR(smtp_address, smtp_address, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Comma separated URLs to send the http_monitor report to.", NULL, NULL,
+             "smtp://smtp.gmail.com:587");
+     static MYSQL_SYSVAR_STR(smtp_user, smtp_user, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "smtp user login", NULL, NULL,
+             "svaroqui@gmail.com");
+     static MYSQL_SYSVAR_STR(smtp_email_from, smtp_email_from, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "smtp email FROM field", NULL, NULL,
+             "monitor@scrambledb.org");
+     static MYSQL_SYSVAR_STR(smtp_email_to, smtp_email_to, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "smtp email TO field", NULL, NULL,
+             "support@scrambledb.org");
+     static MYSQL_SYSVAR_STR(smtp_password, smtp_password, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "smtp password login", NULL, NULL,
+             "xxxxx");
+     static MYSQL_SYSVAR_STR(port, port,PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Http port.",
-            NULL, NULL, "8080");
-    /*static MYSQL_SYSVAR_ULONG(send_retry_wait, send_retry_wait, PLUGIN_VAR_RQCMDARG,
+            NULL, NULL,  "8080");
+       static MYSQL_SYSVAR_STR(aes_key, aes_key,PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "AES Ecrypt key for non SSH/TLS messages",
+            NULL, NULL,  "mysecretkey");
+     static MYSQL_SYSVAR_ULONG(refresh_rate, refresh_rate, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
            "Wait this many seconds before retrying a failed send.",
-           NULL, NULL, 60, 1, 60*60*24, 1);
-     */
-    static MYSQL_SYSVAR_STR(url, url, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
-            "Space separated URLs to send the http_monitor report to.", NULL, NULL,
-            DEFAULT_PROTO "mariadb.org/http_monitor_plugin/post");
-
+           NULL, NULL, 10, 1, 60*60*24, 10); 
+     static MYSQL_SYSVAR_BOOL(error_log, error_log,   PLUGIN_VAR_OPCMDARG, 
+           "Trace execution to error log.", 
+          NULL, NULL,0);
+     static MYSQL_SYSVAR_BOOL(send_mail, send_mail,   PLUGIN_VAR_OPCMDARG, 
+           "Send information by Email to support.", 
+          NULL, NULL,0);
+     static MYSQL_SYSVAR_STR(conn_user, conn_user, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "MariaDB external connection user",
+            NULL, NULL, "root");
+     static MYSQL_SYSVAR_STR(conn_password, conn_password, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "MariaDB external connection password",
+            NULL, NULL, ""); 
+     static MYSQL_SYSVAR_STR(conn_host, conn_host, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "MariaDB external connection host",
+            NULL, NULL, "127.0.0.1"); 
+     static MYSQL_SYSVAR_ULONG(conn_port, conn_port, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+           "MariaDB external connection port",
+           NULL, NULL, 3306, 1000, 32000, 1);
+     static MYSQL_SYSVAR_STR(conn_socket, conn_socket, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "MariaDB external connection host",
+            NULL, NULL, ""); 
+     static MYSQL_SYSVAR_ULONG(history_length, history_length, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+           "Numbers of metrics to keep in history",
+           NULL, NULL, 8, 1,1024, 1);
+     static MYSQL_SYSVAR_STR(node_name, node_name, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Human readable instance name",
+            NULL, NULL, ""); 
+     static MYSQL_SYSVAR_STR(node_group, node_group, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Human readable instance group",
+            NULL, NULL, ""); 
+           
+     static MYSQL_SYSVAR_STR(smtp_certificat, smtp_certificat, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Public Smtp TLS certificate",
+            NULL, NULL, ""); 
+     
+    
     static struct st_mysql_sys_var* settings[] = {
         MYSQL_SYSVAR(server_uid),
-        MYSQL_SYSVAR(user_info),
-        MYSQL_SYSVAR(url),
+        MYSQL_SYSVAR(node_address),
+        MYSQL_SYSVAR(http_address),
         MYSQL_SYSVAR(port),
-        // MYSQL_SYSVAR(send_retry_wait),
+        MYSQL_SYSVAR(refresh_rate),
+        MYSQL_SYSVAR(error_log),
+        MYSQL_SYSVAR(send_mail),
+        MYSQL_SYSVAR(aes_key),
+        MYSQL_SYSVAR(conn_user),
+        MYSQL_SYSVAR(conn_password),
+        MYSQL_SYSVAR(conn_host),
+        MYSQL_SYSVAR(conn_port),
+        MYSQL_SYSVAR(conn_socket),
+        MYSQL_SYSVAR(history_length),
+        MYSQL_SYSVAR(smtp_address),
+        MYSQL_SYSVAR(smtp_user),
+        MYSQL_SYSVAR(smtp_password),
+        MYSQL_SYSVAR(smtp_email_from),
+        MYSQL_SYSVAR(smtp_email_to),
+        MYSQL_SYSVAR(node_group),
+        MYSQL_SYSVAR(node_name),
+        MYSQL_SYSVAR(smtp_certificat),
         NULL
     };
 

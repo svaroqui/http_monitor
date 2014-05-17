@@ -16,61 +16,82 @@
 #define MYSQL_SERVER 1
 #include <sql_class.h>
 #include "mongoose.h"
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 namespace http_monitor {
 
-extern String HTTP_REPORT;
-extern int GALERA_STATUS;
-extern int REPL_STATUS;
-extern int HISTO_INDEX;
 
-static char *port="8080";
+
 int fill_plugin_version(THD *thd, TABLE_LIST *tables);
 int fill_http_monitor(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_misc_data(THD *thd, TABLE_LIST *tables);
-//static int fill_http_variables(THD *thd, TABLE_LIST *tables, COND *cond);
-
-
 int fill_linux_info(THD *thd, TABLE_LIST *tables);
 static int begin_request_handler(struct mg_connection *conn); 
-static const int SERVER_UID_SIZE= 29;
-extern char server_uid_buf[SERVER_UID_SIZE+1], *user_info;
 int calculate_server_uid(char *);
 int prepare_linux_info();
-/*
-extern struct mg_request_info *mg_get_request_info(struct mg_connection *);
-extern int mg_printf(struct mg_connection *,
-              PRINTF_FORMAT_STRING(const char *fmt), ...) PRINTF_ARGS(2, 3);
-*/
-extern ST_SCHEMA_TABLE *i_s_http_monitor;
-extern ulong send_timeout, send_retry_wait;
 
 pthread_handler_t background_thread(void *arg);
 pthread_handler_t background_http_thread(void *arg);
+
+
+
 /**
   The class for storing urls to send report data to.
 
   Constructors are private, the object should be created with create() method.
   send() method does the actual sending.
 */
-class Url {
+
+class Server {
   protected:
-  Url(LEX_STRING &url_arg) : full_url(url_arg) {}
+  Server(LEX_STRING &server_arg) : full_url(server_arg) {}
   const LEX_STRING full_url;
 
   public:
-  virtual ~Url() { my_free(full_url.str); }
+  virtual ~Server() { my_free(full_url.str); }
 
-  const char *url()   { return full_url.str; }
-  size_t url_length() { return full_url.length; }
+  const char *uri()   { return full_url.str; }
+  size_t uri_length() { return full_url.length; }
   virtual int send(const char* data, size_t data_length) =  0;
-
-  static Url* create(const char *url, size_t url_length);
+  
+  static Server* create(const char *server, size_t server_length);
 };
 
-extern Url **urls;
-extern uint url_count;
+extern String HTTP_REPORT;
+extern int GALERA_STATUS;
+extern int REPL_STATUS;
+extern int HISTO_INDEX;
 
+static const int SERVER_UID_SIZE= 29;
+extern char server_uid_buf[SERVER_UID_SIZE+1];
+extern char *port;
+extern char *conn_user;
+extern char *conn_password;
+extern char *conn_host;
+extern char *conn_socket;
+extern char *smtp_user;
+extern char *smtp_password;
+extern char *smtp_email_from;
+extern char *smtp_email_to;
+extern char *smtp_certificat; 
+extern char *aes_key;
+extern char *node_name;
+extern char *node_group;
+
+extern char error_log;
+extern char send_mail;
+extern ulong conn_port;
+extern ulong history_length;
+extern ulong history_index;
+extern ST_SCHEMA_TABLE *i_s_http_monitor;
+extern ulong send_timeout, refresh_rate;
+extern Server **mysql_servers;
+extern uint mysql_servers_count;
+extern Server **smtp_servers;
+extern uint smtp_servers_count;
+extern Server **http_servers;
+extern uint http_servers_count;
 /* these are used to communicate with the background thread */
 extern mysql_mutex_t sleep_mutex;
 extern mysql_cond_t sleep_condition;

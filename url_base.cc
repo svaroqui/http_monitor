@@ -17,35 +17,45 @@
 
 namespace http_monitor {
 
-Url* http_create(const char *url, size_t url_length);
-
+Server* http_create(const char *url, size_t url_length);
+Server* smtp_create(const char *url, size_t url_length);
+Server* mysql_create(const char *url, size_t url_length);
 /**
-  creates an Url object out of an url, if possible.
+  creates an Server object out of an url, if possible.
 
   This is done by invoking corresponding creator functions
   of the derived classes, until the first not NULL result.
 */
-Url* Url::create(const char *url, size_t url_length)
+Server* Server::create(const char *url, size_t url_length)
 {
   url= my_strndup(url, url_length, MYF(MY_WME));
-  
-  if (!url)
+   
+  if (!url){
+    sql_print_information("http_monitor plugin: return null url from base");
     return NULL;
-
-  Url *self= http_create(url, url_length);
-
-  /*
-    here we can add
-
-    if (!self) self= smtp_create(url, url_length);
-    if (!self) self= tftp_create(url, url_length);
-    etc
-  */
-
-  if (!self)
-    my_free(const_cast<char*>(url));
-
-  return self;
+  }
+   if (( is_prefix(url, "mysql://") || is_prefix(url, "mysqls://"))  ) {
+       Server *self= mysql_create(url, url_length);
+       if (!self)
+               my_free(const_cast<char*>(url));
+        return self;
+   }
+   if (( is_prefix(url, "smtp://") || is_prefix(url, "smtps://"))  ) {
+       Server *self= smtp_create(url, url_length);
+       if (!self)
+               my_free(const_cast<char*>(url));
+       return self;
+   
+   }
+   if (( is_prefix(url, "http://") || is_prefix(url, "https://"))  ) {
+       Server *self= http_create(url, url_length);
+       if (!self)
+               my_free(const_cast<char*>(url));
+       return self;
+   
+   }
+ // sql_print_information("http_monitor plugin: return self  from base  ");
+  return NULL;
 }
 
 } // namespace feedback

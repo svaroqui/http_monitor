@@ -696,21 +696,23 @@ namespace http_monitor {
 
             }
         } else {
-           // sql_print_error("http_monitor_init: reading http_content");
-
-            http_content_row *content = getContent(conn->uri);
+           
+            String strURI;
+             if (!strcmp(conn->uri, "")) strURI.append("index.html"); 
+             else strURI.append(conn->uri);    
+            http_content_row *content = getContent(&strURI);
             if (content != NULL) {
                mg_printf(conn,
                         "HTTP/1.1 200 OK\r\n"
-                        "Content-Type: %s;charset=UTF-8\r\n"
+                        "Content-Type: %s\r\n"
+                        // "Content-Type: %s;charset=UTF-8 \r\n"       
                         "Content-Length: %d\r\n" // Always set Content-Length
                         "Connection: close\r\n\r\n",
-                        content->type.ptr(),
-                       content->content.length());
-  
-               
-                mg_write(conn, content->content.ptr(), content->content.length());
-                mg_printf(conn,"\r\n");
+                        content->type.c_str(),
+                        content->content.length());  
+          mg_write(conn, content->content.c_str(), content->content.length());
+            if (error_log)
+                sql_print_information("Http_Monitor *begin_request_handler*: Url: %s",conn->uri);
                    
             } else {
                 const char *help;
@@ -737,33 +739,13 @@ namespace http_monitor {
                 mg_write(conn, help, strlen(help));
                 
             }
-       //     delete content;
 
         }
 
         // Returning non-zero tells mongoose that our function has replied to
         // the client, and mongoose should not send client any more data.
         return 1;
-        /*
-           clean up, free the thd.
-           reset all thread local status variables to minimize
-           the effect of the background thread on SHOW STATUS.
-         */
-        /*ret:
-        if (thd_http)
-        {
- 
-   
-          mysql_mutex_lock(&LOCK_thread_count);
-          bzero(&thd_http->status_var, sizeof(thd_http->status_var));
-          thread_count--;
-          thd_http->killed= KILL_CONNECTION;
-          mysql_cond_broadcast(&COND_thread_count);
-          mysql_mutex_unlock(&LOCK_thread_count);
-          delete thd_http;
-          thd_http= 0;
-        }
-         */
+        
     }
 
     /**
@@ -784,22 +766,18 @@ namespace http_monitor {
       background http thread
      */
     pthread_handler_t background_http_thread(void *p) {
-        //if (my_thread_init())
-        //  return 0;
-
+     
         mysql_mutex_lock(&LOCK_thread_count);
         thd_http_thread_id = thread_id++;
         mysql_mutex_unlock(&LOCK_thread_count);
         // Start the web server.
-        //struct mg_server *server = mg_create_server(NULL);
         server = mg_create_server(NULL);
-        mg_set_option(server, "listening_port", "8080");
+        mg_set_option(server, "listening_port", port);
         mg_set_request_handler(server, &begin_request_handler);
 
         while (!going_down()) {
             mg_poll_server(server, 10);
             //slept_ok(1);
-            // sql_print_error( "http_monitor_init: reading http_content");
         }
         my_thread_end();
         mg_destroy_server(&server);

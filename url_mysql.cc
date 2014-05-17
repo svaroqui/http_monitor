@@ -34,16 +34,16 @@ static const uint FOR_WRITING= 1;
 
   Both http:// and https:// protocols are supported.
 */
-class Server_http: public Server {
+class Server_mysql: public Server {
   protected:
   const LEX_STRING host, port, path;
   bool ssl;
 
-  Server_http(LEX_STRING &url_arg, LEX_STRING &host_arg,
+  Server_mysql(LEX_STRING &url_arg, LEX_STRING &host_arg,
           LEX_STRING &port_arg, LEX_STRING &path_arg, bool ssl_arg) :
     Server(url_arg), host(host_arg), port(port_arg), path(path_arg), ssl(ssl_arg)
     {}
-  ~Server_http()
+  ~Server_mysql()
   {
     my_free(host.str);
     my_free(port.str);
@@ -53,7 +53,7 @@ class Server_http: public Server {
   public:
   int send(const char* data, size_t data_length);
 
-  friend Server* http_create(const char *url, size_t url_length);
+  friend Server* mysql_create(const char *url, size_t url_length);
 };
 
 /**
@@ -68,25 +68,27 @@ class Server_http: public Server {
   But it's ok. This is not a generic purpose www browser - it only needs to be
   good enough to POST the data to mariadb.org.
 */
-Server* http_create(const char *url, size_t url_length)
+Server* mysql_create(const char *url, size_t url_length)
 {
   const char *s;
   LEX_STRING full_url= {const_cast<char*>(url), url_length};
   LEX_STRING host, port, path;
   bool ssl= false;
 
-  if (is_prefix(url, "http://"))
-    s= url + 7;
+  if (is_prefix(url, "mysql://"))
+    s= url + 8;
 #ifdef HAVE_OPENSSL
-  else if (is_prefix(url, "https://"))
+  else if (is_prefix(url, "mysqls://"))
   {
     ssl= true;
-    s= url + 8;
+    s= url + 9;
   }
 #endif
   else
+  {  
+      sql_print_error("HTTP Monitoring plugin: not a mysql url");    
     return NULL;
-
+  }
   for (url= s; *s && *s != ':' && *s != '/'; s++) /* no-op */;
   host.str= const_cast<char*>(url);
   host.length= s-url;
@@ -99,16 +101,10 @@ Server* http_create(const char *url, size_t url_length)
   }
   else
   {
-    if (ssl)
-    {
-      port.str= const_cast<char*>("443");
-      port.length=3;
-    }
-    else
-    {
-      port.str= const_cast<char*>("80");
+    
+      port.str= const_cast<char*>("3306");
       port.length=2;
-    }
+    
   }
 
   if (*s == 0)
@@ -136,14 +132,14 @@ Server* http_create(const char *url, size_t url_length)
     return NULL;
   }
 
-  return new Server_http(full_url, host, port, path, ssl);
+  return new Server_mysql(full_url, host, port, path, ssl);
 }
 
 /* do the vio_write and check that all data were sent ok */
 #define write_check(VIO, DATA, LEN)             \
   (vio_write((VIO), (uchar*)(DATA), (LEN)) != (LEN))
 
-int Server_http::send(const char* data, size_t data_length)
+int Server_mysql::send(const char* data, size_t data_length)
 {
   my_socket fd= INVALID_SOCKET;
   char buf[1024];
