@@ -8,16 +8,16 @@ Install
 
 Download MariaDB 10 tar.gz source code at https://downloads.mariadb.org/ 
 Download http_monitor tar.gz and install it under the plugin directory of the server 
-
+ 
 Compile MariaDB as usual.
 cmake . 
 make install 
  
 load the provided http_monitor.sql into the mysql system schema 
-mysql -uroot -p mysql < http_monitor.sql
-
+mysql -uroot -p mysql < http_monitor.sql 
+ 
 MariaDB> INSTALL PLUGIN http_monitor SONAME 'http_monitor.so'; 
-
+ 
 Http monitor send trend of changes using TLS email to scrambledb.org.  
 Copy the smtpd.crt to the datadir of your mariadb server. 
 set http_monitor_smtp_certificat variable to the location of the certificat file. 
@@ -32,12 +32,12 @@ MariaDB instance to monitor
 
 Log
 ---  
-- http_monitor_error_log=ON   
+- http_monitor_error_log=ON 
     Verbose information trace to the MariaDB error log 
 
 Collection 
 ----------
-- http_monitor_history_length=100
+- http_monitor_history_length=100 
     Number of entry to keep in history queue 
 - http_monitor_refresh_rate=10
     Collect rate in second
@@ -46,11 +46,11 @@ Tail us who you are?
 --------------------   
 - http_monitor_node_group=laptop
 - http_monitor_node_name=mymac
-- http_monitor_server_uid=zOBFqxNABETgELkfy0nYH8G+Olk=
+- http_monitor_server_uid=zOBFqxNABETgELkfy0nYH8G+Olk= 
     An auto generated unique machine idendifier
 - http_monitor_bo_user
 - http_monitor_bo_password
-- http_monitor_notification_email
+- http_monitor_notification_email 
     Email adress to send notification
 
 Internal Web Server parameter 
