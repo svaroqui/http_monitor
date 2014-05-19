@@ -628,6 +628,23 @@ int updateContent(MYSQL* conn) {
      ", HEX(COMPRESS(GROUP_CONCAT(COLUMN_JSON(status)  separator ',\\n'))) ,'\"}')  FROM mysql.http_status_history ORDER BY COLUMN_GET(status,'date' as datetime) ),  'text/plain'"); 
     http_queries.push_back(aRow);
 
+    aRow = new http_query;
+    aRow->query.append((char *) "REPLACE INTO mysql.http_contents SELECT '/template',  (SELECT CONCAT('{\"server\":\"");
+    aRow->query.append( http_monitor::server_uid_buf);
+    aRow->query.append((char *)"\",\"bo_user\":\"");
+    aRow->query.append( http_monitor::bo_user);
+    aRow->query.append((char *)"\",\"bo_password\":\"");
+    aRow->query.append( http_monitor::bo_password);
+    aRow->query.append((char *)"\",\"notification_email\":\"");
+    aRow->query.append( http_monitor::notification_email);
+    aRow->query.append((char *) "\",\"queries\":[\\n' ,"
+            " HEX(COMPRESS(GROUP_CONCAT(CONCAT('{"
+            "\"SCHEMA_NAME\":\"',SCHEMA_NAME,'\","
+            "\"DIGEST\":\"', DIGEST,'\","
+            "\"DIGEST_TEXT\":\"', DIGEST_TEXT,'\","
+            "\"FIRST_SEEN\":\"', FIRST_SEEN,'\","
+            "\"LAST_SEEN\":\"',LAST_SEEN,'\"}'    ) SEPARATOR ',\\n'))),'\\n]}') FROM performance_schema.events_statements_summary_by_digest), 'text/plain' ;");
+    http_queries.push_back(aRow);
     
     http_query *query;
     I_List_iterator<http_query> contentsIter(http_queries);

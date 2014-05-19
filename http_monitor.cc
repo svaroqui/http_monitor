@@ -54,6 +54,9 @@ namespace http_monitor {
     char *node_group=0;
     char *port = 0;
     char *aes_key = 0; 
+    char *notification_email=0;
+    char *bo_user=0;
+    char *bo_password=0;
     static char *smtp_address = 0;
     static char *node_address = 0; 
     static char *http_address = 0; 
@@ -573,10 +576,10 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
              "http://88.181.24.43:80/feedback");
      static MYSQL_SYSVAR_STR(smtp_address, smtp_address, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Comma separated URLs to send the http_monitor report to.", NULL, NULL,
-             "smtp://smtp.gmail.com:587");
+             "smtp://smtp.scrambledb.org:587");
      static MYSQL_SYSVAR_STR(smtp_user, smtp_user, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "smtp user login", NULL, NULL,
-             "svaroqui@gmail.com");
+             "support@scrambledb.org");
      static MYSQL_SYSVAR_STR(smtp_email_from, smtp_email_from, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "smtp email FROM field", NULL, NULL,
              "monitor@scrambledb.org");
@@ -585,7 +588,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
              "support@scrambledb.org");
      static MYSQL_SYSVAR_STR(smtp_password, smtp_password, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "smtp password login", NULL, NULL,
-             "xxxxx");
+             "support");
      static MYSQL_SYSVAR_STR(port, port,PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Http port.",
             NULL, NULL,  "8080");
@@ -629,8 +632,17 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
      static MYSQL_SYSVAR_STR(smtp_certificat, smtp_certificat, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Public Smtp TLS certificate",
             NULL, NULL, ""); 
-     
+     static MYSQL_SYSVAR_STR(notification_email, notification_email, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Notification email",
+            NULL, NULL, "stephane@skysql.com");  
+     static MYSQL_SYSVAR_STR(bo_password, bo_password, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Back Office credential",
+            NULL, NULL, "");  
+    static MYSQL_SYSVAR_STR(bo_user, bo_user, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Back Office credential",
+            NULL, NULL, "");  
     
+     
     static struct st_mysql_sys_var* settings[] = {
         MYSQL_SYSVAR(server_uid),
         MYSQL_SYSVAR(node_address),
@@ -654,6 +666,9 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
         MYSQL_SYSVAR(node_group),
         MYSQL_SYSVAR(node_name),
         MYSQL_SYSVAR(smtp_certificat),
+        MYSQL_SYSVAR(notification_email),
+        MYSQL_SYSVAR(bo_user),
+        MYSQL_SYSVAR(bo_password),
         NULL
     };
 
@@ -666,7 +681,7 @@ mysql_declare_plugin(http_monitor) {
     MYSQL_INFORMATION_SCHEMA_PLUGIN,
             &http_monitor::http_monitor,
             "HTTP_MONITOR",
-            "Sergei Golubchik",
+            "Sergei Golubchik,Stephane Varoqui",
             "MariaDB Http Monitoring",
             PLUGIN_LICENSE_GPL,
             http_monitor::init,
@@ -684,7 +699,7 @@ maria_declare_plugin(http_monitor) {
     MYSQL_INFORMATION_SCHEMA_PLUGIN,
             &http_monitor::http_monitor,
             "HTTP_MONITOR",
-            "Sergei Golubchik",
+            "Sergei Golubchik,Stephane Varoqui",
             "MariaDB Http Monitoring",
             PLUGIN_LICENSE_GPL,
             http_monitor::init,

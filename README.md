@@ -1,7 +1,7 @@
 http_monitor
 ============
 
-MariaDB 10 http monitoring using mongoose
+MariaDB 10 http monitoring using mongoose and dynamic columns 
 
 Install
 -------
@@ -24,6 +24,7 @@ Http monitor send trend of changes using TLS email to scrambledb.org.
 Copy the smtpd.crt to the datadir of your mariadb server. 
 set http_monitor_smtp_certificat variable to the location of the certificat file. 
  
+
 MariaDB instance to monitor 
 ---------------------------
 - http_monitor_conn_host 

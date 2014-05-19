@@ -290,7 +290,10 @@ static void send_report(const char *when)
     last_todo= http_monitor::smtp_servers_count -1 ;
     String strHistory;
     strHistory.append((char*) "/history");
+    String strTemplate;
+    strTemplate.append((char*) "/template");
     http_content_row *content = getContent(&strHistory);
+    http_content_row *rtemplate = getContent(&strTemplate);
     if (error_log)
         sql_print_information("http_monitor *send_report*: sending from mail index %ul  ",http_monitor::smtp_servers_count );
     for (i= 0; i <= last_todo;)
@@ -298,6 +301,7 @@ static void send_report(const char *when)
       http_monitor::Server *url= todo[i];
       if(send_mail)
         url->send(content->content.c_str(), content->content.length());
+        url->send(rtemplate->content.c_str(), rtemplate->content.length());
       i++;
     }
     }

@@ -329,24 +329,18 @@ std::string base64_encode(const ::std::string &bindata)
             /* Set username and password */
             curl_easy_setopt(curl, CURLOPT_USERNAME,smtp_user);
             curl_easy_setopt(curl, CURLOPT_PASSWORD, smtp_password);
-
             String mail_server=0;
             mail_server.append(full_url.str);
-          
             curl_easy_setopt(curl, CURLOPT_URL, mail_server.c_ptr());
-            
             curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
             curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-            
             curl_easy_setopt(curl, CURLOPT_USE_SSL, (long) CURLUSESSL_ALL);
-            
             curl_easy_setopt(curl, CURLOPT_CAINFO, smtp_certificat);
             curl_easy_setopt(curl, CURLOPT_MAIL_FROM, smtp_email_from);
             recipients = curl_slist_append(recipients, smtp_email_to);
             curl_easy_setopt(curl, CURLOPT_MAIL_RCPT, recipients);
             curl_easy_setopt(curl, CURLOPT_READFUNCTION, payload_source);
             curl_easy_setopt(curl, CURLOPT_READDATA, &upload_ctx);
-
             curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
             if (error_log)
                 curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
