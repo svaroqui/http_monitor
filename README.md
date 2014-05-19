@@ -34,14 +34,14 @@ MariaDB instance to monitor
  
 Log 
 ---
-- http_monitor_error_log=ON 
+- http_monitor_error_log=ON  
     Verbose information trace to the MariaDB error log 
  
 Collection 
 ----------
-- http_monitor_history_length=100 
+- http_monitor_history_length=100  
     Number of entry to keep in history queue 
-- http_monitor_refresh_rate=10 
+- http_monitor_refresh_rate=10  
     Collect rate in second
 
 Tail us who you are? 
