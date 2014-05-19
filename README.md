@@ -48,7 +48,7 @@ Tail us who you are?
 --------------------   
 - http_monitor_node_group=laptop
 - http_monitor_node_name=mymac
-- http_monitor_server_uid=zOBFqxNABETgELkfy0nYH8G+Olk= 
+- http_monitor_server_uid  
     An auto generated unique machine idendifier
 - http_monitor_bo_user
 - http_monitor_bo_password
