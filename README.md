@@ -9,11 +9,13 @@ Install
 Download MariaDB 10 tar.gz source code at https://downloads.mariadb.org/ 
 Download http_monitor tar.gz and install it under the plugin directory of the server 
  
-Compile MariaDB as usual.
-cmake . 
-make install 
+Compile MariaDB as usual. 
+
+cmake .  
+make install  
  
 load the provided http_monitor.sql into the mysql system schema 
+
 mysql -uroot -p mysql < http_monitor.sql 
  
 MariaDB> INSTALL PLUGIN http_monitor SONAME 'http_monitor.so'; 
