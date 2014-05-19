@@ -45,8 +45,8 @@ Collection
 - http_monitor_refresh_rate=10  
     Collect rate in second
 
-Tail us who you are? 
---------------------
+Who you are? 
+-----------
 - http_monitor_node_group=laptop
 - http_monitor_node_name=mymac
 - http_monitor_server_uid  
@@ -60,8 +60,8 @@ Internal Web Server parameter
 -----------------------------
 - http_monitor_port=8080
  
-Sending history to us
----------------------
+Saas monitoring 
+----------------
 - http_monitor_send_mail=ON   
 - http_monitor_smtp_address=smtp://smtp.scrambledb.org:587 
 - http_monitor_smtp_certificat=/Users/svar/data/smtpd.crt 

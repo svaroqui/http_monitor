@@ -405,7 +405,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
        
         // Prepare callbacks structure. We have only one callback, the rest are NULL.
         send_timeout = 60;
-        refresh_rate = 60;
+        //refresh_rate = 60;
 
         const char *options[] = {"listening_ports", port, NULL};
 
@@ -596,7 +596,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
             "AES Ecrypt key for non SSH/TLS messages",
             NULL, NULL,  "mysecretkey");
      static MYSQL_SYSVAR_ULONG(refresh_rate, refresh_rate, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
-           "Wait this many seconds before retrying a failed send.",
+           "Wait in seconds before gathering information",
            NULL, NULL, 10, 1, 60*60*24, 10); 
      static MYSQL_SYSVAR_BOOL(error_log, error_log,   PLUGIN_VAR_OPCMDARG, 
            "Trace execution to error log.", 
