@@ -24,11 +24,11 @@ set http_monitor_smtp_certificat variable to the location of the certificat file
 
 MariaDB instance to monitor 
 ---------------------------
-http_monitor_conn_host
-http_monitor_conn_password
-http_monitor_conn_port
-http_monitor_conn_socket
-http_monitor_conn_user
+http_monitor_conn_host 
+http_monitor_conn_password 
+http_monitor_conn_port 
+http_monitor_conn_socket 
+http_monitor_conn_user 
 
 Log
 ---  
