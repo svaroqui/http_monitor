@@ -25,7 +25,7 @@ set http_monitor_smtp_certificat variable to the location of the certificat file
 MariaDB instance to monitor 
 ---------------------------
 http_monitor_conn_host
-http_monitor_conn_password 
+http_monitor_conn_password
 http_monitor_conn_port
 http_monitor_conn_socket
 http_monitor_conn_user
@@ -44,10 +44,10 @@ http_monitor_refresh_rate=10
 
 Tail us who you are? 
 --------------------   
-http_monitor_node_group=laptop 
+http_monitor_node_group=laptop
 http_monitor_node_name=mymac
 http_monitor_server_uid=zOBFqxNABETgELkfy0nYH8G+Olk=
-    An auto generated unique machine idendifier  
+    An auto generated unique machine idendifier
 http_monitor_bo_user
 http_monitor_bo_password
 http_monitor_notification_email
@@ -55,7 +55,7 @@ http_monitor_notification_email
 
 Internal Web Server parameter 
 -----------------------------
-http_monitor_port=8080  
+http_monitor_port=8080
 
 Sending history to us
 ---------------------
