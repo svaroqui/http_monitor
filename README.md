@@ -11,7 +11,7 @@ Download http_monitor tar.gz and install it under the plugin directory of the se
  
 Compile MariaDB as usual: 
  
-cmake .  
+cmake -DWITH_SSL=yes .  
 make install  
  
 load the provided http_monitor.sql into the mysql system schema 

@@ -19,9 +19,10 @@
 #include "sql_show.h"
 #include "handler.h" 
 #include "set_var.h"
+#ifdef HAVE_OPENSSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-
+#endif
 
 /* MySQL functions/variables not declared in mysql_priv.h */
 int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond);
@@ -124,19 +125,18 @@ namespace http_monitor {
     
     
     
- 
+#ifdef HAVE_OPENSSL
 #define SSL_MUTEX_TYPE       pthread_mutex_t
 #define SSL_MUTEX_SETUP(x,y) pthread_mutex_init(&(x),&(y))
 #define SSL_MUTEX_CLEANUP(x) pthread_mutex_destroy(&(x))
 #define SSL_MUTEX_LOCK(x)    pthread_mutex_lock(&(x))
 #define SSL_MUTEX_UNLOCK(x)  pthread_mutex_unlock(&(x))
 #define SSL_THREAD_ID        pthread_self( )
- 
+
 static SSL_MUTEX_TYPE  *pMutexSSL;
  
 static void           SSLLockingFunction            (int mode, int n, const char * file, int line);
 static unsigned long  SSLID_Function                (void);
- 
 
 
 /*============================================================================*/
@@ -215,12 +215,12 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
    }
  
 /*============================================================================*/
- 
+
   static unsigned long SSLID_Function(void)
    {
    return((unsigned long)SSL_THREAD_ID);
    }
-
+#endif
 
     
     
@@ -400,9 +400,9 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
         PSI_register(mutex);
         PSI_register(cond);
         PSI_register(thread);
-
+        #ifdef HAVE_OPENSSL
         InitOpenSSL(true);        
-       
+        #endif
         // Prepare callbacks structure. We have only one callback, the rest are NULL.
         send_timeout = 60;
         //refresh_rate = 60;

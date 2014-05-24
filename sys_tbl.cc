@@ -436,10 +436,24 @@ int updateContent(MYSQL* conn) {
             "\"TOTAL_SIZE\":\"', COALESCE(DATA_FREE,0)+COALESCE(INDEX_LENGTH,0)+ COALESCE(DATA_LENGTH,0),'\","
             "\"DATA_PCT\":\"',CAST(COALESCE(DATA_LENGTH,'') / (SELECT SUM(DATA_FREE + INDEX_LENGTH + DATA_LENGTH)  AS TOT FROM information_schema.TABLES LIMIT 1) *100 AS DECIMAL(10,2)),'\","
             "\"INDEX_PCT\":\"',CAST(COALESCE(INDEX_LENGTH,'') / (SELECT SUM(DATA_FREE + INDEX_LENGTH + DATA_LENGTH) AS TOT FROM information_schema.TABLES LIMIT 1) *100 AS DECIMAL(10,2)),'\","
-            "\"CHECKSUM\":\"',COALESCE(CHECKSUM,''),'\"}'    )  ORDER BY DATA_FREE + INDEX_LENGTH+ DATA_LENGTH DESC  SEPARATOR ',\\n'),'\\n]}')  FROM (SELECT * FROM  information_schema.TABLES ORDER BY DATA_FREE + INDEX_LENGTH+ DATA_LENGTH DESC LIMIT 10) AS TMP  ), 'text/plain' ;");
+            "\"CHECKSUM\":\"',COALESCE(CHECKSUM,''),'\"}'    )  ORDER BY DATA_FREE + INDEX_LENGTH+ DATA_LENGTH DESC  SEPARATOR ',\\n'),'\\n]}')  FROM (SELECT * FROM information_schema.TABLES ORDER BY DATA_FREE + INDEX_LENGTH+ DATA_LENGTH DESC LIMIT 10) AS TMP  ), 'text/plain' ;");
     http_queries.push_back(aRow);
-   
+
+    /*  Tables  */
     
+    aRow = new http_query;
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status SELECT CONCAT('TABLE_INDEX_LENGTH_', TABLE_SCHEMA ,'_', TABLE_NAME ) as VARIABLE_NAME , INDEX_LENGTH AS VARIABLE_VALUE FROM information_schema.TABLES;");
+    http_queries.push_back(aRow);
+    
+    aRow = new http_query;
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status SELECT CONCAT('TABLE_ROWS_', TABLE_SCHEMA ,'_', TABLE_NAME ) as VARIABLE_NAME , TABLE_ROWS AS VARIABLE_VALUE FROM information_schema.TABLES;");
+    http_queries.push_back(aRow);
+        
+    aRow = new http_query;
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status SELECT CONCAT('TABLE_DATA_LENGTH_', TABLE_SCHEMA ,'_', TABLE_NAME ) as VARIABLE_NAME , DATA_LENGTH AS VARIABLE_VALUE FROM information_schema.TABLES;");
+    http_queries.push_back(aRow);
+    
+    /*  Queries  */
     
     aRow = new http_query;
     aRow->query.append((char *) "REPLACE INTO mysql.http_current_status SELECT * FROM information_schema.global_status;" );
@@ -521,6 +535,8 @@ int updateContent(MYSQL* conn) {
     aRow = new http_query;
     aRow->query.append((char *) "REPLACE INTO mysql.http_current_status SELECT CONCAT('QUERY_SUM_NO_GOOD_INDEX_USED_', DIGEST) as VARIABLE_NAME , SUM_NO_GOOD_INDEX_USED AS VARIABLE_VALUE FROM performance_schema.events_statements_summary_by_digest;");
     http_queries.push_back(aRow);
+ 
+    
     
     aRow = new http_query;
     aRow->query.append((char *) "REPLACE INTO mysql.http_status_history SELECT " );
@@ -637,13 +653,13 @@ int updateContent(MYSQL* conn) {
     aRow->query.append( http_monitor::bo_password);
     aRow->query.append((char *)"\",\"notification_email\":\"");
     aRow->query.append( http_monitor::notification_email);
-    aRow->query.append((char *) "\",\"queries\":[\\n' ,"
+    aRow->query.append((char *) "\",\"queries\":\"' ,"
             " HEX(COMPRESS(GROUP_CONCAT(CONCAT('{"
             "\"SCHEMA_NAME\":\"',SCHEMA_NAME,'\","
             "\"DIGEST\":\"', DIGEST,'\","
             "\"DIGEST_TEXT\":\"', DIGEST_TEXT,'\","
             "\"FIRST_SEEN\":\"', FIRST_SEEN,'\","
-            "\"LAST_SEEN\":\"',LAST_SEEN,'\"}'    ) SEPARATOR ',\\n'))),'\\n]}') FROM performance_schema.events_statements_summary_by_digest), 'text/plain' ;");
+            "\"LAST_SEEN\":\"',LAST_SEEN,'\"}'    ) SEPARATOR ',\\n'))),'\"}') FROM performance_schema.events_statements_summary_by_digest), 'text/plain' ;");
     http_queries.push_back(aRow);
     
     http_query *query;
