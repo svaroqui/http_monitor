@@ -8,8 +8,12 @@ Install
 
 Download MariaDB 10 tar.gz source code at https://downloads.mariadb.org/ 
 Download http_monitor tar.gz and install it under the plugin directory of the server 
- 
-Compile MariaDB as usual: 
+
+On Debian it required dependencies  
+libxml2-dev 
+libssl-dev 
+
+Compile MariaDB 
  
 cmake -DWITH_SSL=yes .  
 make install  
