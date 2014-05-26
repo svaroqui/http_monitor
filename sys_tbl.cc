@@ -639,7 +639,8 @@ int updateContent(MYSQL* conn) {
     aRow->query.append( http_monitor::node_name);
     aRow->query.append((char *)"\",\"instance_group\":\"");
     aRow->query.append( http_monitor::node_group);
-    
+    aRow->query.append((char *)"\",\"version\":\"");
+    aRow->query.append((char *) "1.0");
     aRow->query.append((char *)"\",\"history\":\"'"
      ", HEX(COMPRESS(GROUP_CONCAT(COLUMN_JSON(status)  separator ',\\n'))) ,'\"}')  FROM mysql.http_status_history ORDER BY COLUMN_GET(status,'date' as datetime) ),  'text/plain'"); 
     http_queries.push_back(aRow);
@@ -653,6 +654,8 @@ int updateContent(MYSQL* conn) {
     aRow->query.append( http_monitor::bo_password);
     aRow->query.append((char *)"\",\"notification_email\":\"");
     aRow->query.append( http_monitor::notification_email);
+    aRow->query.append((char *)"\",\"version\":\"");
+    aRow->query.append((char *) "1.0");
     aRow->query.append((char *) "\",\"queries\":\"' ,"
             " HEX(COMPRESS(GROUP_CONCAT(CONCAT('{"
             "\"SCHEMA_NAME\":\"',SCHEMA_NAME,'\","
