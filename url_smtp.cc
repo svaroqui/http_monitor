@@ -72,6 +72,9 @@ namespace http_monitor {
 
     public:
         int send(const char* data, size_t data_length);
+        const LEX_STRING getHost(){return this->host;}
+        const LEX_STRING getPort(){return this->port;}
+        const LEX_STRING getPath(){return this->path;} 
        
         friend Server* smtp_create(const char *url, size_t url_length);
     };
@@ -87,7 +90,12 @@ namespace http_monitor {
     static const int ADD_SIZE = 15; // ADD_SIZE for TO,FROM,SUBJECT,CONTENT-TYPE,CONTENT-TRANSFER-ENCODING,CONETNT-DISPOSITION and \r\n
     static const int SEND_BUF_SIZE = 54;
     const char *data;
-
+    class attach_row : public ilink {
+        public:
+        String row;
+        virtual ~attach_row(){}
+    };      
+    I_List<attach_row> attach_rows;
     static char (*fileBuf)[CHARS] = NULL;
 static const char reverse_table[128] = {
    64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
@@ -100,6 +108,9 @@ static const char reverse_table[128] = {
    41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 64, 64, 64, 64, 64
 };
  
+
+
+
 std::string base64_encode(const ::std::string &bindata)
 {
    using ::std::string;
@@ -204,6 +215,87 @@ std::string base64_encode(const ::std::string &bindata)
         return buffer_size;
     }
 
+   
+
+    
+    size_t split_mail() {
+        size_t len(0), buffer_size(0);
+
+        int no_of_rows = mail_data_length / SEND_BUF_SIZE;
+        //no_of_rows = 1;
+
+        String emailto;
+        emailto.append("To: ");
+        emailto.append(smtp_email_to);
+        emailto.append("\n");
+        
+        attach_row *aRow; 
+        aRow = new attach_row;
+        aRow->row.append(emailto);
+        attach_rows.push_back(aRow);
+        aRow = new attach_row;
+        aRow->row.append((char *)  "From: " FROM "\n");
+        attach_rows.push_back(aRow);
+        aRow = new attach_row;
+        aRow->row.append((char *)  "Subject: HTTP Monitor\n");
+        attach_rows.push_back(aRow);
+        aRow = new attach_row;
+        aRow->row.append((char *)  "MIME-Version: 1.0\n");
+        attach_rows.push_back(aRow);
+        aRow = new attach_row;
+        aRow->row.append((char *)  "--separateur-mime\n");
+        attach_rows.push_back(aRow);
+        aRow = new attach_row;
+        aRow->row.append((char *)  "Content-type: text/plain; charset=ISO-8859-1\n\n");
+        attach_rows.push_back(aRow);
+        aRow = new attach_row;
+        aRow->row.append((char *)  "--separateur-mime\n");
+        attach_rows.push_back(aRow);
+        aRow = new attach_row;
+        aRow->row.append((char *)  "Content-Type: application/octet-stream;\n");
+        attach_rows.push_back(aRow);
+        aRow = new attach_row;
+        aRow->row.append((char *)  " name=status.txt\n");
+        attach_rows.push_back(aRow);
+        aRow = new attach_row;
+        aRow->row.append((char *)  "Content-Transfer-Encoding: 7bit\n");
+        attach_rows.push_back(aRow);
+        aRow = new attach_row;
+        aRow->row.append((char *)  "Content-Disposition: attachment;\n");
+        attach_rows.push_back(aRow);
+        aRow = new attach_row;
+        aRow->row.append((char *)  " filename=status.txt\n\n");
+        attach_rows.push_back(aRow);
+        
+        char* temp_buf = new char[SEND_BUF_SIZE + 1]; //taking extra size of 4 bytes
+    
+        int read(0);
+        int lenatt(0);
+        for (; lenatt < (unsigned) no_of_rows ; ++lenatt) {
+         
+            memcpy(temp_buf, mail_data +read, sizeof (char) * SEND_BUF_SIZE);
+            read += SEND_BUF_SIZE;
+            
+            temp_buf[SEND_BUF_SIZE] = '\0';
+            aRow = new attach_row;
+            aRow->row.append((char *)temp_buf );
+            attach_rows.push_back(aRow);
+        }
+        if (mail_data_length != (unsigned) read) {
+            memcpy(temp_buf, &mail_data[read], sizeof (char) * (mail_data_length - read));
+            temp_buf[mail_data_length - read] = '\0';
+            aRow = new attach_row;
+            aRow->row.append((char *)temp_buf );
+            attach_rows.push_back(aRow);
+        }
+        aRow = new attach_row;
+        aRow->row.append((char *)  "\n\n");
+        attach_rows.push_back(aRow);
+     
+        delete[] temp_buf;
+        return 0;
+    }
+
     static size_t payload_source(void *ptr, size_t size, size_t nmemb, void *userp) {
         struct upload_status *upload_ctx = (struct upload_status *) userp;
         size_t len(0), buffer_size(0);
@@ -237,7 +329,49 @@ std::string base64_encode(const ::std::string &bindata)
         
         return 0;
     }
+    
+    
+    
+      static size_t payload_source_vector(void *ptr, size_t size, size_t nmemb, void *userp) {
+        struct upload_status *upload_ctx = (struct upload_status *) userp;
+        size_t len(0), buffer_size(0);
+        if (error_log)
+           sql_print_information("http_monitor *payload_source*: ask for '%lu ,  %lu", size,nmemb) ;
+             
+        
+        if ((size == 0) || (nmemb == 0) || ((size * nmemb) < 1)) {
+              if (error_log)
+               sql_print_information("http_monitor *payload_source*: nothink quit") ;
+            return 0;
+        }
+         attach_row *aRow;
+         I_List_iterator<attach_row> contentsIter(attach_rows);
+         int ct=0;
+         while ((aRow = contentsIter++)) {
+               
+             //   sql_print_information("http_monitor *payload_source*: testing for '%i ,ct %i,  %s", upload_ctx->lines_read ,ct , aRow->row.c_ptr()) ;
+             
+                if(upload_ctx->lines_read==ct) {
+                 
+                  
+                        size_t len = strlen(data);
+                        memcpy(ptr, aRow->row.c_ptr(), aRow->row.length());
+                        upload_ctx->lines_read++;
+                         if (error_log) 
+                            sql_print_information("http_monitor *payload_source*: sending for '%u ,  %s",  aRow->row.length(),aRow->row.c_ptr()) ;
+                        return aRow->row.length();
+                  
+                   }
+                     ct++;
+                 
+         }
 
+        
+        sql_print_information("http_monitor *payload_source*: stopped send 0") ;
+        
+        return 0;
+    }
+    
     /**
       create a Server_smtp object out of the url, if possible.
 
@@ -322,13 +456,16 @@ std::string base64_encode(const ::std::string &bindata)
         mail_data = data;
         mail_data_length = data_length;
         format_mail();
+        //split_mail();
         upload_ctx.lines_read = 0;
         // file_upload_ctx.lines_read = 0;
         curl = curl_easy_init();
         if (curl) {
             /* Set username and password */
-            curl_easy_setopt(curl, CURLOPT_USERNAME,smtp_user);
-            curl_easy_setopt(curl, CURLOPT_PASSWORD, smtp_password);
+            if (smtp_authentification){
+                 curl_easy_setopt(curl, CURLOPT_USERNAME,smtp_user);
+                curl_easy_setopt(curl, CURLOPT_PASSWORD, smtp_password);
+            }
             String mail_server=0;
             mail_server.append(full_url.str);
             curl_easy_setopt(curl, CURLOPT_URL, mail_server.c_ptr());
@@ -340,6 +477,7 @@ std::string base64_encode(const ::std::string &bindata)
             recipients = curl_slist_append(recipients, smtp_email_to);
             curl_easy_setopt(curl, CURLOPT_MAIL_RCPT, recipients);
             curl_easy_setopt(curl, CURLOPT_READFUNCTION, payload_source);
+          //  curl_easy_setopt(curl, CURLOPT_READFUNCTION, payload_source_vector);
             curl_easy_setopt(curl, CURLOPT_READDATA, &upload_ctx);
             curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
             if (error_log)
@@ -361,6 +499,7 @@ std::string base64_encode(const ::std::string &bindata)
         if(error_log)
                 sql_print_information("http_monitor plugin: mail report to '%s' was sent",
                 full_url.str);
+        attach_rows.empty();
         return (int) res;
     }
     

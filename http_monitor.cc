@@ -62,7 +62,10 @@ namespace http_monitor {
     static char *node_address = 0; 
     static char *http_address = 0; 
     char error_log;
+    char smtp_authentification;
     char send_mail;
+    char use_spider;
+    char first_run=1;
     char *smtp_user = 0;
     char *smtp_password = 0;
     ulong conn_port=3306; 
@@ -407,8 +410,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
         send_timeout = 60;
         //refresh_rate = 60;
 
-        const char *options[] = {"listening_ports", port, NULL};
-
+        
         if (calculate_server_uid(server_uid_buf))
             return 1;
 
@@ -524,8 +526,6 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
                 sql_print_error("http_monitor plugin: failed to start a http thread");
                 return 1;
             }
-
-
         }
 
         return 0;
@@ -535,8 +535,12 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
        plugin deinitialization function
      */
     static int free(void *p) {
+        #ifdef HAVE_OPENSSL
+        CloseOpenSSL();
+        #endif
         if (mysql_servers_count) {
-            CloseOpenSSL();
+            
+      
             mysql_mutex_lock(&sleep_mutex);
             shutdown_plugin = true;
             mysql_cond_signal(&sleep_condition);
@@ -564,46 +568,51 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
 
 
 
-
      static MYSQL_SYSVAR_STR(server_uid, server_uid,
             PLUGIN_VAR_READONLY | PLUGIN_VAR_NOCMDOPT,
             "Automatically calculated server unique id hash.", NULL, NULL, 0);
      static MYSQL_SYSVAR_STR(node_address, node_address, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Comma separated URLs to send the http_monitor report to.", NULL, NULL,
-             "mysql://127.0.0.1:3306/cluster1,mysql://127.0.0.1:3306/cluster2");
+            "mysql://127.0.0.1:3306/localhost");
      static MYSQL_SYSVAR_STR(http_address, http_address, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Comma separated URLs to send the http_monitor report to.", NULL, NULL,
              "http://88.181.24.43:80/feedback");
      static MYSQL_SYSVAR_STR(smtp_address, smtp_address, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Comma separated URLs to send the http_monitor report to.", NULL, NULL,
-             "smtp://smtp.scrambledb.org:587");
+            "smtp://smtp.scrambledb.org:587");
      static MYSQL_SYSVAR_STR(smtp_user, smtp_user, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "smtp user login", NULL, NULL,
-             "support@scrambledb.org");
+            "support@scrambledb.org");
      static MYSQL_SYSVAR_STR(smtp_email_from, smtp_email_from, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "smtp email FROM field", NULL, NULL,
-             "monitor@scrambledb.org");
+            "monitor@scrambledb.org");
      static MYSQL_SYSVAR_STR(smtp_email_to, smtp_email_to, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "smtp email TO field", NULL, NULL,
-             "support@scrambledb.org");
+            "support@scrambledb.org");
      static MYSQL_SYSVAR_STR(smtp_password, smtp_password, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "smtp password login", NULL, NULL,
-             "support");
+            "support");
+     static MYSQL_SYSVAR_BOOL(smtp_authentification, smtp_authentification,   PLUGIN_VAR_OPCMDARG, 
+            "Authenticate to smtp server", 
+            NULL, NULL,0);
      static MYSQL_SYSVAR_STR(port, port,PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Http port.",
             NULL, NULL,  "8080");
-       static MYSQL_SYSVAR_STR(aes_key, aes_key,PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+     static MYSQL_SYSVAR_STR(aes_key, aes_key,PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "AES Ecrypt key for non SSH/TLS messages",
             NULL, NULL,  "mysecretkey");
+     static MYSQL_SYSVAR_BOOL(use_spider, use_spider,PLUGIN_VAR_OPCMDARG,
+            "Shoud use spider storage engine to access remote nodes default is federatedx",
+            NULL, NULL,0);
      static MYSQL_SYSVAR_ULONG(refresh_rate, refresh_rate, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
-           "Wait in seconds before gathering information",
-           NULL, NULL, 10, 1, 60*60*24, 10); 
+            "Wait in seconds before gathering information",
+            NULL, NULL, 10, 1, 60*60*24, 10); 
      static MYSQL_SYSVAR_BOOL(error_log, error_log,   PLUGIN_VAR_OPCMDARG, 
-           "Trace execution to error log.", 
-          NULL, NULL,0);
+            "Trace execution to error log.", 
+            NULL, NULL,0);
      static MYSQL_SYSVAR_BOOL(send_mail, send_mail,   PLUGIN_VAR_OPCMDARG, 
-           "Send information by Email to support.", 
-          NULL, NULL,0);
+            "Send information by Email to support.", 
+            NULL, NULL,0);
      static MYSQL_SYSVAR_STR(conn_user, conn_user, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "MariaDB external connection user",
             NULL, NULL, "root");
@@ -615,20 +624,19 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
             NULL, NULL, "127.0.0.1"); 
      static MYSQL_SYSVAR_ULONG(conn_port, conn_port, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
            "MariaDB external connection port",
-           NULL, NULL, 3306, 1000, 32000, 1);
+            NULL, NULL, 3306, 1000, 32000, 1);
      static MYSQL_SYSVAR_STR(conn_socket, conn_socket, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "MariaDB external connection host",
             NULL, NULL, ""); 
      static MYSQL_SYSVAR_ULONG(history_length, history_length, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
-           "Numbers of metrics to keep in history",
-           NULL, NULL, 8, 1,1024, 1);
+            "Numbers of metrics to keep in history",
+            NULL, NULL, 8, 1,1024, 1);
      static MYSQL_SYSVAR_STR(node_name, node_name, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Human readable instance name",
             NULL, NULL, ""); 
      static MYSQL_SYSVAR_STR(node_group, node_group, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Human readable instance group",
             NULL, NULL, ""); 
-           
      static MYSQL_SYSVAR_STR(smtp_certificat, smtp_certificat, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Public Smtp TLS certificate",
             NULL, NULL, ""); 
@@ -638,7 +646,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
      static MYSQL_SYSVAR_STR(bo_password, bo_password, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Back Office credential",
             NULL, NULL, "");  
-    static MYSQL_SYSVAR_STR(bo_user, bo_user, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+     static MYSQL_SYSVAR_STR(bo_user, bo_user, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Back Office credential",
             NULL, NULL, "");  
     
@@ -663,12 +671,14 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
         MYSQL_SYSVAR(smtp_password),
         MYSQL_SYSVAR(smtp_email_from),
         MYSQL_SYSVAR(smtp_email_to),
+        MYSQL_SYSVAR(smtp_authentification),
         MYSQL_SYSVAR(node_group),
         MYSQL_SYSVAR(node_name),
         MYSQL_SYSVAR(smtp_certificat),
         MYSQL_SYSVAR(notification_email),
         MYSQL_SYSVAR(bo_user),
         MYSQL_SYSVAR(bo_password),
+        MYSQL_SYSVAR(use_spider),
         NULL
     };
 
@@ -707,7 +717,7 @@ maria_declare_plugin(http_monitor) {
             0x0101,
             NULL,
             http_monitor::settings,
-            "1.0",
+            "10.0.2",
             MariaDB_PLUGIN_MATURITY_BETA
 }
 maria_declare_plugin_end;

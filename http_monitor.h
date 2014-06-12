@@ -28,6 +28,7 @@ int fill_http_monitor(THD *thd, TABLE_LIST *tables, COND *cond);
 int fill_misc_data(THD *thd, TABLE_LIST *tables);
 int fill_linux_info(THD *thd, TABLE_LIST *tables);
 static int begin_request_handler(struct mg_connection *conn); 
+
 int calculate_server_uid(char *);
 int prepare_linux_info();
 
@@ -54,9 +55,17 @@ class Server {
   const char *uri()   { return full_url.str; }
   size_t uri_length() { return full_url.length; }
   virtual int send(const char* data, size_t data_length) =  0;
+  virtual const LEX_STRING getHost() = 0;
+  virtual const LEX_STRING getPort() = 0;
+  virtual const LEX_STRING getPath() = 0;
   
   static Server* create(const char *server, size_t server_length);
 };
+
+Server* http_create(const char *url, size_t url_length);
+Server* smtp_create(const char *url, size_t url_length);
+Server* mysql_create(const char *url, size_t url_length);
+
 
 extern String HTTP_REPORT;
 extern int GALERA_STATUS;
@@ -75,6 +84,7 @@ extern char *smtp_password;
 extern char *smtp_email_from;
 extern char *smtp_email_to;
 extern char *smtp_certificat; 
+extern char smtp_authentification;
 extern char *notification_email;
 extern char *bo_user;
 extern char *bo_password;
@@ -84,6 +94,8 @@ extern char *node_group;
 
 extern char error_log;
 extern char send_mail;
+extern char use_spider;
+extern char first_run;
 extern ulong conn_port;
 extern ulong history_length;
 extern ulong history_index;

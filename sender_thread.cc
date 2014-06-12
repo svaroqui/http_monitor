@@ -350,7 +350,7 @@ pthread_handler_t background_thread(void *arg __attribute__((unused)))
     if (slept_ok(refresh_rate))
     {
       send_report(NULL);
-
+      first_run=0;
       while(slept_ok(refresh_rate))
         send_report(NULL);
     }

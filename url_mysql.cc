@@ -52,9 +52,12 @@ class Server_mysql: public Server {
 
   public:
   int send(const char* data, size_t data_length);
-
+  const LEX_STRING getHost(){return this->host;}
+  const LEX_STRING getPort(){return this->port;}
+  const LEX_STRING getPath(){return this->path;} 
   friend Server* mysql_create(const char *url, size_t url_length);
 };
+
 
 /**
   create a Server_http object out of the url, if possible.

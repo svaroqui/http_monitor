@@ -78,5 +78,6 @@ int updateContent(MYSQL *conn);
 int loadHttpContentConn();
 static my_bool sql_connect(MYSQL *mysql, uint wait);
 void finish_with_error(MYSQL *conn, String *query);
+std::string remove_letter( std::string str, char c );
 #endif
 }
