@@ -1322,15 +1322,20 @@ int updateContent(MYSQL* conn) {
        "( SELECT HEX(COMPRESS(GROUP_CONCAT(CONCAT('{"
             "\"SERVER_NAME\":\"',SERVER_NAME,'\","    
             "\"VARIABLE_NAME\":\"',COALESCE(VARIABLE_NAME,''),'\","
-            "\"VARIABLE_VALUE\":\"',COALESCE(VARIABLE_VALUE,''),'\"}'    ) SEPARATOR ',\\n'))) FROM mysql.http_variables) ");
+            "\"VARIABLE_VALUE\":\"',COALESCE(VARIABLE_VALUE,''),'\"}'    ) SEPARATOR ',\\n'))) FROM mysql.http_variables WHERE VARIABLE_NAME<>'FT_BOOLEAN_SYNTAX' ) ");
+     aRow->query.append((char *) ",'\",\"status\":\"' ,"
+       "( SELECT HEX(COMPRESS(GROUP_CONCAT(CONCAT('{"
+            "\"SERVER_NAME\":\"',SERVER_NAME,'\","    
+            "\"VARIABLE_NAME\":\"',COALESCE(VARIABLE_NAME,''),'\","
+            "\"VARIABLE_VALUE\":\"',COALESCE(VARIABLE_VALUE,''),'\"}'    ) SEPARATOR ',\\n'))) FROM mysql.http_status) ");
      aRow->query.append((char *) ",'\",\"columns\":\"' ,"
        "( SELECT HEX(COMPRESS(GROUP_CONCAT(CONCAT('{"
-             "\"SERVER_NAME\":\"',SERVER_NAME,'\","            
+            "\"SERVER_NAME\":\"',SERVER_NAME,'\","            
             "\"TABLE_SCHEMA\":\"',TABLE_SCHEMA,'\","
             "\"TABLE_NAME\":\"',TABLE_NAME,'\","
             "\"COLUMN_NAME\":\"',COLUMN_NAME,'\","
             "\"ORDINAL_POSITION\":\"',COALESCE(ORDINAL_POSITION,''),'\","
-            "\"COLUMN_DEFAULT\":\"',COALESCE(COLUMN_DEFAULT,''),'\","
+            "\"COLUMN_DEFAULT\":\"',CONCAT('0x',HEX(COALESCE(COLUMN_DEFAULT,''))),'\","
             "\"IS_NULLABLE\":\"',COALESCE(IS_NULLABLE,''),'\","
             "\"DATA_TYPE\":\"',COALESCE(DATA_TYPE,''),'\","
             "\"CHARACTER_MAXIMUM_LENGTH\":\"',COALESCE(CHARACTER_MAXIMUM_LENGTH,''),'\","
@@ -1344,7 +1349,7 @@ int updateContent(MYSQL* conn) {
             "\"COLUMN_KEY\":\"',COALESCE(COLUMN_KEY,''),'\","
             "\"EXTRA\":\"',COALESCE(EXTRA,''),'\","
             "\"PRIVILEGES\":\"',COALESCE(PRIVILEGES,''),'\","
-            "\"COLUMN_COMMENT\":\"',COALESCE(COLUMN_COMMENT,''),'\"}'    ) SEPARATOR ',\\n'))) FROM  mysql.http_columns) ");
+            "\"COLUMN_COMMENT\":\"',CONCAT('0x',HEX(COALESCE(COLUMN_COMMENT,''))),'\"}'    ) SEPARATOR ',\\n'))) FROM  mysql.http_columns) ");
 
     aRow->query.append((char *) ",'\"}') , 'text/plain' ;");
     http_queries.push_back(aRow);
