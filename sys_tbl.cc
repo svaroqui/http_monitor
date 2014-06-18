@@ -1002,7 +1002,7 @@ int updateContent(MYSQL* conn) {
     aRow->query.append(Server);
     aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
-    aRow->query.append("_TABLES");
+    aRow->query.append("_tables");
     http_queries.push_back(aRow);
         
     aRow = new http_query;
@@ -1010,7 +1010,7 @@ int updateContent(MYSQL* conn) {
     aRow->query.append(Server);
     aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
-    aRow->query.append("_TABLES");
+    aRow->query.append("_tables");
     http_queries.push_back(aRow);
     
     
@@ -1022,7 +1022,7 @@ int updateContent(MYSQL* conn) {
     aRow->query.append(Server);
     aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
-    aRow->query.append("_GLOBAL_STATUS");
+    aRow->query.append("_global_status");
     http_queries.push_back(aRow);
    
     aRow = new http_query;
