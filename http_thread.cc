@@ -625,6 +625,8 @@ namespace http_monitor {
      */
 
     static int begin_request_handler(struct mg_connection *conn) {
+        // conn->query_string  to get uri after ? 
+        
         if (!strcmp(conn->uri, "/logo")) {
             mg_printf(conn,
                     "HTTP/1.1 200 OK\r\n"

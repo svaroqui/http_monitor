@@ -854,7 +854,7 @@ int updateContent(MYSQL* conn) {
     "`PRIVILEGES` varchar(80) NOT NULL DEFAULT '',"
     "`COLUMN_COMMENT` varchar(1024) NOT NULL DEFAULT ''");
     
-    if (use_spider)  aRow->query.append((char *) ") ENGINE=SPIDER COMMENT='table \"TABLES\",srv \"http_is_");
+    if (use_spider)  aRow->query.append((char *) ") ENGINE=SPIDER COMMENT='table \"COLUMNS\",srv \"http_is_");
     else aRow->query.append((char *)") ENGINE=FEDERATED CONNECTION=\"http_is_");
     aRow->query.append( Server);
     if (use_spider)  aRow->query.append("\"'");
