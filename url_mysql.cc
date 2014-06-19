@@ -106,7 +106,7 @@ Server* mysql_create(const char *url, size_t url_length)
   {
     
       port.str= const_cast<char*>("3306");
-      port.length=2;
+      port.length=4;
     
   }
 

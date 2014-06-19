@@ -65,6 +65,7 @@ namespace http_monitor {
     char smtp_authentification;
     char send_mail;
     char use_spider;
+    char use_aes_encrypt;
     char first_run=1;
     char *smtp_user = 0;
     char *smtp_password = 0;
@@ -598,12 +599,15 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
      static MYSQL_SYSVAR_STR(port, port,PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Http port.",
             NULL, NULL,  "8080");
+     static MYSQL_SYSVAR_BOOL(use_aes_encrypt, use_aes_encrypt,PLUGIN_VAR_OPCMDARG,
+            "Shoud use aes encryption that only you or a trusted use can decode the mail content",
+            NULL, NULL,0);
      static MYSQL_SYSVAR_STR(aes_key, aes_key,PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "AES Ecrypt key for non SSH/TLS messages",
             NULL, NULL,  "mysecretkey");
      static MYSQL_SYSVAR_BOOL(use_spider, use_spider,PLUGIN_VAR_OPCMDARG,
             "Shoud use spider storage engine to access remote nodes default is federatedx",
-            NULL, NULL,0);
+            NULL, NULL,1);
      static MYSQL_SYSVAR_ULONG(refresh_rate, refresh_rate, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Wait in seconds before gathering information",
             NULL, NULL, 10, 1, 60*60*24, 10); 

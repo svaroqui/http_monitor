@@ -1295,8 +1295,18 @@ int updateContent(MYSQL* conn) {
     aRow->query.append( http_monitor::node_group);
     aRow->query.append((char *)"\",\"version\":\"");
     aRow->query.append((char *) "1.0");
+    if (use_aes_encrypt){
+       aRow->query.append((char *)"\",\"history\":\"'"
+    ", HEX(COMPRESS(AES_ENCRYPT(");
+    aRow->query.append((char *) "GROUP_CONCAT(COLUMN_JSON(status)  separator ',\\n'),'");
+    aRow->query.append(aes_key);
+    aRow->query.append("'))) ,'\"}')  FROM mysql.http_status_history ORDER BY COLUMN_GET(status,'date' as datetime) ),  'text/plain'"); 
+    
+    }else{     
     aRow->query.append((char *)"\",\"history\":\"'"
     ", HEX(COMPRESS(GROUP_CONCAT(COLUMN_JSON(status)  separator ',\\n'))) ,'\"}')  FROM mysql.http_status_history ORDER BY COLUMN_GET(status,'date' as datetime) ),  'text/plain'"); 
+    }
+    
     http_queries.push_back(aRow);
 
     aRow = new http_query;
@@ -1310,6 +1320,64 @@ int updateContent(MYSQL* conn) {
     aRow->query.append( http_monitor::notification_email);
     aRow->query.append((char *)"\",\"version\":\"");
     aRow->query.append((char *) "1.0");
+    if (use_aes_encrypt){
+    aRow->query.append((char *) "\",\"queries\":\"' ,"
+            "( SELECT HEX(COMPRESS(AES_ENCRYPT(");
+    aRow->query.append((char *) "GROUP_CONCAT(CONCAT('{"
+            "\"SERVER_NAME\":\"',SERVER_NAME,'\","
+            "\"SCHEMA_NAME\":\"',COALESCE(SCHEMA_NAME,''),'\","
+            "\"DIGEST\":\"', COALESCE(DIGEST,''),'\","
+            "\"DIGEST_TEXT\":\"', COALESCE(DIGEST_TEXT,''),'\","
+            "\"FIRST_SEEN\":\"', COALESCE(FIRST_SEEN,''),'\","
+            "\"LAST_SEEN\":\"',COALESCE(LAST_SEEN,''),'\"}'    ) SEPARATOR ',\\n'),'");
+    aRow->query.append(aes_key);
+    aRow->query.append("'))) FROM mysql.http_queries) ");
+    
+ 
+    aRow->query.append((char *) ",'\",\"variables\":\"' ,"
+       "( SELECT HEX(COMPRESS(AES_ENCRYPT(");
+    aRow->query.append((char *) "GROUP_CONCAT(CONCAT('{"
+            "\"SERVER_NAME\":\"',SERVER_NAME,'\","    
+            "\"VARIABLE_NAME\":\"',COALESCE(VARIABLE_NAME,''),'\","
+            "\"VARIABLE_VALUE\":\"',COALESCE(VARIABLE_VALUE,''),'\"}'    ) SEPARATOR ',\\n'),'");
+    aRow->query.append(aes_key);
+    aRow->query.append("'))) FROM mysql.http_variables WHERE VARIABLE_NAME<>'FT_BOOLEAN_SYNTAX' ) ");
+    aRow->query.append((char *) ",'\",\"status\":\"' ,"
+       "( SELECT HEX(COMPRESS(AES_ENCRYPT(");
+    aRow->query.append((char *) "GROUP_CONCAT(CONCAT('{"
+            "\"SERVER_NAME\":\"',SERVER_NAME,'\","    
+            "\"VARIABLE_NAME\":\"',COALESCE(VARIABLE_NAME,''),'\","
+            "\"VARIABLE_VALUE\":\"',COALESCE(VARIABLE_VALUE,''),'\"}'    ) SEPARATOR ',\\n'),'");
+    aRow->query.append(aes_key);
+    aRow->query.append("'))) FROM mysql.http_status) ");
+    aRow->query.append((char *) ",'\",\"columns\":\"' ,"
+       "( SELECT HEX(COMPRESS(AES_ENCRYPT(");
+    aRow->query.append((char *) "GROUP_CONCAT(CONCAT('{"
+            "\"SERVER_NAME\":\"',SERVER_NAME,'\","            
+            "\"TABLE_SCHEMA\":\"',TABLE_SCHEMA,'\","
+            "\"TABLE_NAME\":\"',TABLE_NAME,'\","
+            "\"COLUMN_NAME\":\"',COLUMN_NAME,'\","
+            "\"ORDINAL_POSITION\":\"',COALESCE(ORDINAL_POSITION,''),'\","
+            "\"COLUMN_DEFAULT\":\"',CONCAT('0x',HEX(COALESCE(COLUMN_DEFAULT,''))),'\","
+            "\"IS_NULLABLE\":\"',COALESCE(IS_NULLABLE,''),'\","
+            "\"DATA_TYPE\":\"',COALESCE(DATA_TYPE,''),'\","
+            "\"CHARACTER_MAXIMUM_LENGTH\":\"',COALESCE(CHARACTER_MAXIMUM_LENGTH,''),'\","
+            "\"CHARACTER_OCTET_LENGTH\":\"',COALESCE(CHARACTER_OCTET_LENGTH,''),'\","
+            "\"NUMERIC_PRECISION\":\"',COALESCE(NUMERIC_PRECISION,''),'\","
+            "\"NUMERIC_SCALE\":\"',COALESCE(NUMERIC_SCALE,''),'\","
+            "\"DATETIME_PRECISION\":\"',COALESCE(DATETIME_PRECISION,''),'\","
+            "\"CHARACTER_SET_NAME\":\"',COALESCE(CHARACTER_SET_NAME,''),'\","
+            "\"COLLATION_NAME\":\"',COALESCE(COLLATION_NAME,''),'\","
+            "\"COLUMN_TYPE\":\"',COALESCE(COLUMN_TYPE,''),'\","
+            "\"COLUMN_KEY\":\"',COALESCE(COLUMN_KEY,''),'\","
+            "\"EXTRA\":\"',COALESCE(EXTRA,''),'\","
+            "\"PRIVILEGES\":\"',COALESCE(PRIVILEGES,''),'\","
+            "\"COLUMN_COMMENT\":\"',CONCAT('0x',HEX(COALESCE(COLUMN_COMMENT,''))),'\"}'    ) SEPARATOR ',\\n'),'");
+    aRow->query.append(aes_key);
+    aRow->query.append("'))) FROM  mysql.http_columns) "); 
+    }else {
+        
+    
     aRow->query.append((char *) "\",\"queries\":\"' ,"
             "( SELECT HEX(COMPRESS(GROUP_CONCAT(CONCAT('{"
             "\"SERVER_NAME\":\"',SERVER_NAME,'\","
@@ -1318,7 +1386,9 @@ int updateContent(MYSQL* conn) {
             "\"DIGEST_TEXT\":\"', COALESCE(DIGEST_TEXT,''),'\","
             "\"FIRST_SEEN\":\"', COALESCE(FIRST_SEEN,''),'\","
             "\"LAST_SEEN\":\"',COALESCE(LAST_SEEN,''),'\"}'    ) SEPARATOR ',\\n'))) FROM mysql.http_queries) ");
-     aRow->query.append((char *) ",'\",\"variables\":\"' ,"
+    
+ 
+    aRow->query.append((char *) ",'\",\"variables\":\"' ,"
        "( SELECT HEX(COMPRESS(GROUP_CONCAT(CONCAT('{"
             "\"SERVER_NAME\":\"',SERVER_NAME,'\","    
             "\"VARIABLE_NAME\":\"',COALESCE(VARIABLE_NAME,''),'\","
@@ -1350,7 +1420,7 @@ int updateContent(MYSQL* conn) {
             "\"EXTRA\":\"',COALESCE(EXTRA,''),'\","
             "\"PRIVILEGES\":\"',COALESCE(PRIVILEGES,''),'\","
             "\"COLUMN_COMMENT\":\"',CONCAT('0x',HEX(COALESCE(COLUMN_COMMENT,''))),'\"}'    ) SEPARATOR ',\\n'))) FROM  mysql.http_columns) ");
-
+    }
     aRow->query.append((char *) ",'\"}') , 'text/plain' ;");
     http_queries.push_back(aRow);
     
