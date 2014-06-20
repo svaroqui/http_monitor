@@ -88,14 +88,17 @@ extern char smtp_authentification;
 extern char *notification_email;
 extern char *bo_user;
 extern char *bo_password;
-extern char *aes_key;
 extern char *node_name;
 extern char *node_group;
 
+extern char *aes_key;
+extern char *salt_key;
+extern char use_aes_encrypt;
 extern char error_log;
 extern char send_mail;
 extern char use_spider;
 extern char first_run;
+
 extern ulong conn_port;
 extern ulong history_length;
 extern ulong history_index;

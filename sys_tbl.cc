@@ -384,7 +384,14 @@ int updateContent(MYSQL* conn) {
     
     
     aRow = new http_query;
-    aRow->query.append((char *) "SET group_concat_max_len=32*1024*1024");
+    aRow->query.append((char *) "SET group_concat_max_len=256*1024*1024");
+    http_queries.push_back(aRow);
+     
+    aRow = new http_query;
+    aRow->query.append((char *) "SET @salt_key='");
+    aRow->query.append(salt_key);
+    aRow->query.append((char *) "'");
+    
     http_queries.push_back(aRow);
     
     if (first_run){
@@ -477,8 +484,7 @@ int updateContent(MYSQL* conn) {
     http_queries.push_back(aRow);
     
    
-    
-    
+    aRow = new http_query;
     aRow->query.append((char *) "INSERT INTO `http_status_state` VALUES ('BINLOG_CACHE_USE'),('BINLOG_STMT_CACHE_USE'),('INNODB_BUFFER_POOL_PAGES_DATA'),('INNODB_BUFFER_POOL_PAGES_DIRTY'),('INNODB_BUFFER_POOL_PAGES_FREE'),('INNODB_BUFFER_POOL_PAGES_TOTAL'),('OPEN_FILES'),('OPEN_TABLES'),('OPEN_TABLE_DEFINITIONS'),('THREADS_CACHED'),('THREADS_CONNECTED'),('THREADS_RUNNING');");
     http_queries.push_back(aRow);
     
@@ -491,7 +497,7 @@ int updateContent(MYSQL* conn) {
     aRow->query.append((char *)  "CREATE TABLE IF NOT EXISTS mysql.`http_current_status` ("
         "`VARIABLE_NAME` varchar(64) CHARACTER SET utf8 NOT NULL DEFAULT '',"
         "`VARIABLE_VALUE` varchar(1024) CHARACTER SET utf8 DEFAULT NULL,"
-        "`SERVER_NAME` varchar(50) NOT NULL DEFAULT 'http_mon_localhost',"
+       "`SERVER_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
         "PRIMARY KEY (`VARIABLE_NAME`,`SERVER_NAME`)"
         ") ENGINE=MEMORY DEFAULT CHARSET=latin1");
     http_queries.push_back(aRow);
@@ -501,14 +507,14 @@ int updateContent(MYSQL* conn) {
     aRow = new http_query;
     aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_last_status`");
     http_queries.push_back(aRow);
-    aRow = new http_query;
+    
     
     
     aRow = new http_query;
     aRow->query.append((char *)  "CREATE TABLE IF NOT EXISTS mysql.`http_last_status` ("
         "`VARIABLE_NAME` varchar(64) CHARACTER SET utf8 NOT NULL DEFAULT '',"
         "`VARIABLE_VALUE` varchar(1024) CHARACTER SET utf8 DEFAULT NULL,"
-        "`SERVER_NAME` varchar(50) NOT NULL DEFAULT 'http_mon_localhost',"
+        "`SERVER_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
         "PRIMARY KEY (`VARIABLE_NAME`,`SERVER_NAME`)"
         ") ENGINE=MEMORY DEFAULT CHARSET=latin1");
     http_queries.push_back(aRow);
@@ -524,7 +530,7 @@ int updateContent(MYSQL* conn) {
     aRow->query.append((char *) "CREATE TABLE IF NOT EXISTS mysql.`http_status_history` ("
     "`id` smallint(6) NOT NULL DEFAULT '0',"
     "`status` blob,"
-    "`SERVER_NAME` varchar(50) NOT NULL DEFAULT 'http_mon_localhost',"
+    "`SERVER_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
     "PRIMARY KEY (`id`,`SERVER_NAME`)"
     ") ENGINE=MyISAM DEFAULT CHARSET=latin1");
     http_queries.push_back(aRow);
@@ -533,14 +539,14 @@ int updateContent(MYSQL* conn) {
     aRow = new http_query;
     aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_variables`");
     http_queries.push_back(aRow);
-    aRow = new http_query;
+
     
     
     aRow = new http_query;
     aRow->query.append((char *)  "CREATE TABLE IF NOT EXISTS mysql.`http_variables` ("
         "`VARIABLE_NAME` varchar(64) CHARACTER SET utf8 NOT NULL DEFAULT '',"
         "`VARIABLE_VALUE` varchar(1024) CHARACTER SET utf8 DEFAULT NULL,"
-        "`SERVER_NAME` varchar(50) NOT NULL DEFAULT 'http_mon_localhost',"
+        "`SERVER_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
         "PRIMARY KEY (`VARIABLE_NAME`,`SERVER_NAME`)"
         ") ENGINE=MEMORY DEFAULT CHARSET=latin1");
     http_queries.push_back(aRow);
@@ -548,14 +554,14 @@ int updateContent(MYSQL* conn) {
     aRow = new http_query;
     aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_status`");
     http_queries.push_back(aRow);
-    aRow = new http_query;
+
     
     
     aRow = new http_query;
     aRow->query.append((char *) "CREATE TABLE IF NOT EXISTS mysql.`http_status` ("
         "`VARIABLE_NAME` varchar(64) CHARACTER SET utf8 NOT NULL DEFAULT '',"
         "`VARIABLE_VALUE` varchar(1024) CHARACTER SET utf8 DEFAULT NULL,"
-        "`SERVER_NAME` varchar(50) NOT NULL DEFAULT 'http_mon_localhost',"
+        "`SERVER_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
         "PRIMARY KEY (`VARIABLE_NAME`,`SERVER_NAME`)"
         ") ENGINE=MEMORY DEFAULT CHARSET=latin1");
     http_queries.push_back(aRow);
@@ -564,14 +570,14 @@ int updateContent(MYSQL* conn) {
     aRow = new http_query;
     aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_tables`");
     http_queries.push_back(aRow);
-    aRow = new http_query;
+  
     
     aRow = new http_query;
     aRow->query.append((char *) "CREATE TABLE IF NOT EXISTS mysql.http_tables ("
-    "`TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',"
-    "`TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',"
-    "`TABLE_NAME` varchar(64) NOT NULL DEFAULT '',"
-    "`TABLE_TYPE` varchar(64) NOT NULL DEFAULT '',"
+    "`TABLE_CATALOG` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+    "`TABLE_SCHEMA` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+    "`TABLE_NAME` BIGINT UNSIGNED  NOT NULL DEFAULT 0,"
+    "`TABLE_TYPE` varchar(64) NOT NULL DEFAULT 0,"
     "`ENGINE` varchar(64) DEFAULT NULL,"
     "`VERSION` bigint(21) unsigned DEFAULT NULL,"
     "`ROW_FORMAT` varchar(10) DEFAULT NULL,"
@@ -588,8 +594,8 @@ int updateContent(MYSQL* conn) {
     "`TABLE_COLLATION` varchar(32) DEFAULT NULL,"
     "`CHECKSUM` bigint(21) unsigned DEFAULT NULL,"
     "`CREATE_OPTIONS` varchar(255) DEFAULT NULL,"
-    "`TABLE_COMMENT` varchar(2048) NOT NULL DEFAULT '',"
-    "`SERVER_NAME` varchar(50) NOT NULL DEFAULT 'http_mon_localhost',"
+    "`TABLE_COMMENT` bigint unsigned NOT NULL DEFAULT 0,"
+    "`SERVER_NAME` bigint unsigned NOT NULL DEFAULT 0,"
     "PRIMARY KEY (`TABLE_CATALOG`,`TABLE_SCHEMA`, `TABLE_NAME`,`SERVER_NAME`)"
     ") ENGINE=MEMORY ");
     http_queries.push_back(aRow);
@@ -598,17 +604,17 @@ int updateContent(MYSQL* conn) {
     aRow = new http_query;
     aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_columns`");
     http_queries.push_back(aRow);
-    aRow = new http_query;
+   
     
     
     aRow = new http_query;
     aRow->query.append((char *) "CREATE TABLE IF NOT EXISTS mysql.http_columns ("
-    "`TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',"
-    "`TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',"
-    "`TABLE_NAME` varchar(64) NOT NULL DEFAULT '',"
-    "`COLUMN_NAME` varchar(64) NOT NULL DEFAULT '',"
+    "`TABLE_CATALOG` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+    "`TABLE_SCHEMA` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+    "`TABLE_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+    "`COLUMN_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
     "`ORDINAL_POSITION` bigint(21) unsigned NOT NULL DEFAULT '0',"
-    "`COLUMN_DEFAULT` varchar(64),"
+    "`COLUMN_DEFAULT` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
     "`IS_NULLABLE` varchar(3) NOT NULL DEFAULT '',"
     "`DATA_TYPE` varchar(64) NOT NULL DEFAULT '',"
     "`CHARACTER_MAXIMUM_LENGTH` bigint(21) unsigned DEFAULT NULL,"
@@ -622,8 +628,8 @@ int updateContent(MYSQL* conn) {
     "`COLUMN_KEY` varchar(3) NOT NULL DEFAULT '',"
     "`EXTRA` varchar(27) NOT NULL DEFAULT '',"
     "`PRIVILEGES` varchar(80) NOT NULL DEFAULT '',"
-    "`COLUMN_COMMENT` varchar(1024) NOT NULL DEFAULT '',"
-    "`SERVER_NAME` varchar(50) NOT NULL DEFAULT 'http_mon_localhost',"
+    "`COLUMN_COMMENT` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+    "`SERVER_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
     "PRIMARY KEY (`TABLE_SCHEMA`, `TABLE_NAME`,`COLUMN_NAME`,`SERVER_NAME`)"
    ") ENGINE=MEMORY");
     http_queries.push_back(aRow);
@@ -631,12 +637,12 @@ int updateContent(MYSQL* conn) {
     aRow = new http_query;
     aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_queries`");
     http_queries.push_back(aRow);
-    aRow = new http_query;
+   
     
     
     aRow = new http_query;
     aRow->query.append((char *) "CREATE TABLE IF NOT EXISTS mysql.http_queries("
-    "`SCHEMA_NAME` varchar(64) DEFAULT NULL,"
+    "`SCHEMA_NAME`  BIGINT UNSIGNED NOT NULL DEFAULT 0,"
     "`DIGEST` varchar(32) DEFAULT NULL,"
     "`DIGEST_TEXT` varchar(20000),"
     "`COUNT_STAR` bigint(20) unsigned NOT NULL,"
@@ -665,7 +671,7 @@ int updateContent(MYSQL* conn) {
     "`SUM_NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,"
     "`FIRST_SEEN` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',"
     "`LAST_SEEN` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',"
-    "`SERVER_NAME` varchar(50) NOT NULL DEFAULT 'http_mon_localhost',"
+    "`SERVER_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
     "PRIMARY KEY (`DIGEST`,`SCHEMA_NAME`, `SERVER_NAME`)"
     ") ENGINE=MEMORY");
     http_queries.push_back(aRow);
@@ -1004,59 +1010,90 @@ int updateContent(MYSQL* conn) {
     http_queries.push_back(aRow);  
   
     } // if first_run
-    
+   
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_variables(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT * ,'");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_variables(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT * ,CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append("' FROM  mysql.http_");
+    aRow->query.append("',@salt_key) ), 16), 16, 10) FROM  mysql.http_");
     aRow->query.append(Server);
     aRow->query.append((char *) "_global_variables");
     http_queries.push_back(aRow);
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT * ,'");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT * ,CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append("' FROM  mysql.http_");
+    aRow->query.append("',@salt_key) ), 16), 16, 10) FROM  mysql.http_");
     aRow->query.append(Server);
     aRow->query.append((char *) "_global_status");
     http_queries.push_back(aRow);
     
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_queries SELECT * ,'");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_queries SELECT "
+    "CONV(LEFT(MD5(CONCAT('");
+    aRow->query.append(salt_key);
+    aRow->query.append((char *) "',`SCHEMA_NAME`, '");
+    aRow->query.append(salt_key);
+    aRow->query.append((char *) "')), 16), 16, 10) ," );
+    aRow->query.append((char *) "DIGEST,DIGEST_TEXT, COUNT_STAR,SUM_TIMER_WAIT,MIN_TIMER_WAIT,AVG_TIMER_WAIT,MAX_TIMER_WAIT,SUM_LOCK_TIME,SUM_ERRORS,SUM_WARNINGS,SUM_ROWS_AFFECTED,SUM_ROWS_SENT,SUM_ROWS_EXAMINED,SUM_CREATED_TMP_DISK_TABLES,SUM_CREATED_TMP_TABLES,SUM_SELECT_FULL_JOIN,SUM_SELECT_FULL_RANGE_JOIN,SUM_SELECT_RANGE,SUM_SELECT_RANGE_CHECK,SUM_SELECT_SCAN,SUM_SORT_MERGE_PASSES,SUM_SORT_RANGE,SUM_SORT_ROWS,SUM_SORT_SCAN,SUM_NO_INDEX_USED,SUM_NO_GOOD_INDEX_USED,FIRST_SEEN,LAST_SEEN,CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append("' FROM  mysql.http_");
+    aRow->query.append("',@salt_key) ), 16), 16, 10) FROM  mysql.http_");
     aRow->query.append(Server);
     aRow->query.append((char *) "_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
     
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_columns SELECT *  ,'");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_columns SELECT "
+     "CONV(LEFT(MD5(CONCAT('");
+    aRow->query.append(salt_key);
+    aRow->query.append((char *) "',`TABLE_CATALOG`, '");
+    aRow->query.append(salt_key);
+    aRow->query.append((char *) "')), 16), 16, 10) ," );
+   
+    aRow->query.append((char *) "CONV(LEFT(MD5(CONCAT('");
+    aRow->query.append(salt_key);
+    aRow->query.append((char *) "',`TABLE_SCHEMA`, '");
+    aRow->query.append(salt_key);
+    aRow->query.append((char *) "')), 16), 16, 10) ," );
+    
+    aRow->query.append((char *) "CONV(LEFT(MD5(CONCAT('");
+    aRow->query.append(salt_key);
+    aRow->query.append((char *) "',`TABLE_NAME`, '");
+    aRow->query.append(salt_key);
+    aRow->query.append((char *) "')), 16), 16, 10)," );
+    
+    aRow->query.append((char *) "CONV(LEFT(MD5(CONCAT('");
+    aRow->query.append(salt_key);
+    aRow->query.append((char *) "',`COLUMN_NAME`, '");
+    aRow->query.append(salt_key);
+    aRow->query.append((char *) "')), 16), 16, 10)," );
+
+    aRow->query.append((char *) "ORDINAL_POSITION,COLUMN_DEFAULT,IS_NULLABLE,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH,CHARACTER_OCTET_LENGTH,NUMERIC_PRECISION,NUMERIC_SCALE,DATETIME_PRECISION,CHARACTER_SET_NAME,COLLATION_NAME,COLUMN_TYPE,COLUMN_KEY,EXTRA,PRIVILEGES,0 , CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append("'  FROM  mysql.http_");
+    aRow->query.append("',@salt_key) ), 16), 16, 10)  FROM  mysql.http_");
     aRow->query.append(Server);
     aRow->query.append((char *) "_columns");
     http_queries.push_back(aRow);
     
 
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME)  SELECT CONCAT('TABLE_INDEX_LENGTH_', TABLE_SCHEMA ,'_', TABLE_NAME ) as VARIABLE_NAME , INDEX_LENGTH AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME)  SELECT CONCAT('TABLE_INDEX_LENGTH_', CONV(LEFT(MD5(CONCAT(@salt_key,TABLE_SCHEMA,@salt_key) ), 16), 16, 10) ,'_', CONV(LEFT(MD5(CONCAT(@salt_key,TABLE_NAME,@salt_key) ), 16), 16, 10) ) as VARIABLE_NAME , INDEX_LENGTH AS VARIABLE_VALUE, CONV(LEFT(MD5(CONCAT(@salt_key, '");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_tables");
     http_queries.push_back(aRow);
     
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('TABLE_ROWS_', TABLE_SCHEMA ,'_', TABLE_NAME ) as VARIABLE_NAME , TABLE_ROWS AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('TABLE_ROWS_', CONV(LEFT(MD5(CONCAT(@salt_key,TABLE_SCHEMA,@salt_key) ), 16), 16, 10) ,'_', CONV(LEFT(MD5(CONCAT(@salt_key,TABLE_NAME,@salt_key) ), 16), 16, 10) ) as VARIABLE_NAME, TABLE_ROWS AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_tables");
     http_queries.push_back(aRow);
         
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('TABLE_DATA_LENGTH_', TABLE_SCHEMA ,'_', TABLE_NAME ) as VARIABLE_NAME , DATA_LENGTH AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('TABLE_DATA_LENGTH_',CONV(LEFT(MD5(CONCAT(@salt_key,TABLE_SCHEMA,@salt_key) ), 16), 16, 10) ,'_', CONV(LEFT(MD5(CONCAT(@salt_key,TABLE_NAME,@salt_key) ), 16), 16, 10) ) as VARIABLE_NAME , DATA_LENGTH AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_tables");
     http_queries.push_back(aRow);
@@ -1066,160 +1103,160 @@ int updateContent(MYSQL* conn) {
     /*  Queries  */
     
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT * , '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT * ,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_global_status");
     http_queries.push_back(aRow);
    
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status SELECT CONCAT('QUERY_COUNT_STAR_', DIGEST) as VARIABLE_NAME , COUNT_STAR AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status SELECT CONCAT('QUERY_COUNT_STAR_', DIGEST) as VARIABLE_NAME , COUNT_STAR AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
     
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_ROWS_SENT_', DIGEST) as VARIABLE_NAME , SUM_ROWS_SENT AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_ROWS_SENT_', DIGEST) as VARIABLE_NAME , SUM_ROWS_SENT AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
    
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_ROWS_EXAMINED_', DIGEST) as VARIABLE_NAME , SUM_ROWS_EXAMINED AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_ROWS_EXAMINED_', DIGEST) as VARIABLE_NAME , SUM_ROWS_EXAMINED AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
 
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_LOCK_TIME_', DIGEST) as VARIABLE_NAME , SUM_LOCK_TIME AS VARIABLE_VALUE , '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_LOCK_TIME_', DIGEST) as VARIABLE_NAME , SUM_LOCK_TIME AS VARIABLE_VALUE ,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-     aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+     aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
     
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_WARNINGS_', DIGEST) as VARIABLE_NAME , SUM_WARNINGS AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_WARNINGS_', DIGEST) as VARIABLE_NAME , SUM_WARNINGS AS VARIABLE_VALUE, CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
     
 
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_ROWS_AFFECTED_', DIGEST) as VARIABLE_NAME , SUM_ROWS_AFFECTED AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_ROWS_AFFECTED_', DIGEST) as VARIABLE_NAME , SUM_ROWS_AFFECTED AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
     
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_CREATED_TMP_DISK_TABLES_', DIGEST) as VARIABLE_NAME , SUM_CREATED_TMP_DISK_TABLES AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_CREATED_TMP_DISK_TABLES_', DIGEST) as VARIABLE_NAME , SUM_CREATED_TMP_DISK_TABLES AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
 
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_CREATED_TMP_TABLES_', DIGEST) as VARIABLE_NAME , SUM_CREATED_TMP_TABLES AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_CREATED_TMP_TABLES_', DIGEST) as VARIABLE_NAME , SUM_CREATED_TMP_TABLES AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' FROM performance_schema.events_statements_summary_by_digest;");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) FROM performance_schema.events_statements_summary_by_digest;");
     http_queries.push_back(aRow);
 
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SELECT_FULL_JOIN_', DIGEST) as VARIABLE_NAME , SUM_SELECT_FULL_JOIN AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SELECT_FULL_JOIN_', DIGEST) as VARIABLE_NAME , SUM_SELECT_FULL_JOIN AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
 
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SELECT_FULL_RANGE_JOIN_', DIGEST) as VARIABLE_NAME , SUM_SELECT_FULL_RANGE_JOIN AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SELECT_FULL_RANGE_JOIN_', DIGEST) as VARIABLE_NAME , SUM_SELECT_FULL_RANGE_JOIN AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
     
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SELECT_RANGE_', DIGEST) as VARIABLE_NAME , SUM_SELECT_RANGE AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SELECT_RANGE_', DIGEST) as VARIABLE_NAME , SUM_SELECT_RANGE AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
 
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SELECT_RANGE_CHECK_', DIGEST) as VARIABLE_NAME , SUM_SELECT_RANGE_CHECK AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SELECT_RANGE_CHECK_', DIGEST) as VARIABLE_NAME , SUM_SELECT_RANGE_CHECK AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
 
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SELECT_FULL_RANGE_JOIN_', DIGEST) as VARIABLE_NAME , SUM_SELECT_FULL_RANGE_JOIN AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SELECT_FULL_RANGE_JOIN_', DIGEST) as VARIABLE_NAME , SUM_SELECT_FULL_RANGE_JOIN AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
 
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SELECT_SCAN_', DIGEST) as VARIABLE_NAME , SUM_SELECT_SCAN AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SELECT_SCAN_', DIGEST) as VARIABLE_NAME , SUM_SELECT_SCAN AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
 
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SORT_MERGE_PASSES_', DIGEST) as VARIABLE_NAME , SUM_SORT_MERGE_PASSES AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SORT_MERGE_PASSES_', DIGEST) as VARIABLE_NAME , SUM_SORT_MERGE_PASSES AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
 
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SORT_RANGE_', DIGEST) as VARIABLE_NAME , SUM_SORT_RANGE AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SORT_RANGE_', DIGEST) as VARIABLE_NAME , SUM_SORT_RANGE AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
 
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SORT_SCAN_', DIGEST) as VARIABLE_NAME , SUM_SORT_SCAN AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_SORT_SCAN_', DIGEST) as VARIABLE_NAME , SUM_SORT_SCAN AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
 
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_NO_INDEX_USED_', DIGEST) as VARIABLE_NAME , SUM_NO_INDEX_USED AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_NO_INDEX_USED_', DIGEST) as VARIABLE_NAME , SUM_NO_INDEX_USED AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
 
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_NO_GOOD_INDEX_USED_', DIGEST) as VARIABLE_NAME , SUM_NO_GOOD_INDEX_USED AS VARIABLE_VALUE, '");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_current_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT CONCAT('QUERY_SUM_NO_GOOD_INDEX_USED_', DIGEST) as VARIABLE_NAME , SUM_NO_GOOD_INDEX_USED AS VARIABLE_VALUE,  CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' AS SERVER FROM mysql.http_");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) AS SERVER FROM mysql.http_");
     aRow->query.append( Server);
     aRow->query.append("_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
@@ -1227,9 +1264,9 @@ int updateContent(MYSQL* conn) {
     aRow = new http_query;
     aRow->query.append((char *) "REPLACE INTO mysql.http_status_history(ID, STATUS, SERVER_NAME) SELECT " );
     aRow->query.append( pos);
-    aRow->query.append(",COLUMN_CREATE('date', NOW() AS datetime, 'server', '"); 
+    aRow->query.append(",COLUMN_CREATE('date', NOW() AS datetime, 'server',  CONV(LEFT(MD5(CONCAT(@salt_key,'"); 
     aRow->query.append(Server);    
-    aRow->query.append("' AS CHAR ),'");
+    aRow->query.append("',@salt_key) ), 16), 16, 10) AS CHAR ),'");
     aRow->query.append(Server);    
     aRow->query.append("';");
     http_queries.push_back(aRow);
@@ -1238,17 +1275,17 @@ int updateContent(MYSQL* conn) {
     aRow = new http_query;
     aRow->query.append((char *) "INSERT INTO  mysql.http_status_history(ID, STATUS, SERVER_NAME)  SELECT " );
     aRow->query.append( pos);
-    aRow->query.append((char *) ",NULL,'");
+    aRow->query.append((char *) ",NULL, CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "'  FROM mysql.http_last_status ps JOIN mysql.http_current_status cs ON cs.VARIABLE_NAME=ps.VARIABLE_NAME AND cs.SERVER_NAME=ps.SERVER_NAME LEFT JOIN mysql.http_status_state ss ON ss.VARIABLE_NAME=ps.VARIABLE_NAME WHERE ((cs.VARIABLE_VALUE - ps.VARIABLE_VALUE) <>0 OR ss.VARIABLE_NAME IS NOT NULL) AND cs.SERVER_NAME='");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10)  FROM mysql.http_last_status ps JOIN mysql.http_current_status cs ON cs.VARIABLE_NAME=ps.VARIABLE_NAME AND cs.SERVER_NAME=ps.SERVER_NAME LEFT JOIN mysql.http_status_state ss ON ss.VARIABLE_NAME=ps.VARIABLE_NAME WHERE ((cs.VARIABLE_VALUE - ps.VARIABLE_VALUE) <>0 OR ss.VARIABLE_NAME IS NOT NULL) AND cs.SERVER_NAME= CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *) "' ON DUPLICATE KEY UPDATE status=COLUMN_ADD(status, cs.VARIABLE_NAME,  IF(ss.VARIABLE_NAME IS NOT NULL,cs.VARIABLE_VALUE,(cs.VARIABLE_VALUE - ps.VARIABLE_VALUE)));");
+    aRow->query.append((char *) "',@salt_key) ), 16), 16, 10) ON DUPLICATE KEY UPDATE status=COLUMN_ADD(status, cs.VARIABLE_NAME,  IF(ss.VARIABLE_NAME IS NOT NULL,cs.VARIABLE_VALUE,(cs.VARIABLE_VALUE - ps.VARIABLE_VALUE)));");
     http_queries.push_back(aRow);
     
     aRow = new http_query;
-    aRow->query.append((char *) "REPLACE INTO mysql.http_last_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT * FROM  mysql.http_current_status WHERE SERVER_NAME='");
+    aRow->query.append((char *) "REPLACE INTO mysql.http_last_status(VARIABLE_NAME,VARIABLE_VALUE,SERVER_NAME) SELECT * FROM  mysql.http_current_status WHERE SERVER_NAME= CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
-    aRow->query.append((char *)"' ;");
+    aRow->query.append((char *)"',@salt_key) ), 16), 16, 10) ;");
     http_queries.push_back(aRow);
  
     

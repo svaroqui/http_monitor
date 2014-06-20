@@ -55,6 +55,7 @@ namespace http_monitor {
     char *node_group=0;
     char *port = 0;
     char *aes_key = 0; 
+    char *salt_key = 0;
     char *notification_email=0;
     char *bo_user=0;
     char *bo_password=0;
@@ -605,6 +606,9 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
      static MYSQL_SYSVAR_STR(aes_key, aes_key,PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "AES Ecrypt key for non SSH/TLS messages",
             NULL, NULL,  "mysecretkey");
+     static MYSQL_SYSVAR_STR(salt_key, salt_key,PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Salt key to anonymize meta data string ",
+            NULL, NULL,  "mysecretsalt");
      static MYSQL_SYSVAR_BOOL(use_spider, use_spider,PLUGIN_VAR_OPCMDARG,
             "Shoud use spider storage engine to access remote nodes default is federatedx",
             NULL, NULL,1);
@@ -664,6 +668,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
         MYSQL_SYSVAR(error_log),
         MYSQL_SYSVAR(send_mail),
         MYSQL_SYSVAR(aes_key),
+        MYSQL_SYSVAR(salt_key),
         MYSQL_SYSVAR(conn_user),
         MYSQL_SYSVAR(conn_password),
         MYSQL_SYSVAR(conn_host),
