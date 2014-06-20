@@ -476,11 +476,16 @@ int updateContent(MYSQL* conn) {
     ") ENGINE=MyISAM DEFAULT CHARSET=latin1");
     http_queries.push_back(aRow);
     
-    aRow = new http_query;
+   
+    
+    
     aRow->query.append((char *) "INSERT INTO `http_status_state` VALUES ('BINLOG_CACHE_USE'),('BINLOG_STMT_CACHE_USE'),('INNODB_BUFFER_POOL_PAGES_DATA'),('INNODB_BUFFER_POOL_PAGES_DIRTY'),('INNODB_BUFFER_POOL_PAGES_FREE'),('INNODB_BUFFER_POOL_PAGES_TOTAL'),('OPEN_FILES'),('OPEN_TABLES'),('OPEN_TABLE_DEFINITIONS'),('THREADS_CACHED'),('THREADS_CONNECTED'),('THREADS_RUNNING');");
     http_queries.push_back(aRow);
     
-    
+    aRow = new http_query;
+    aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_current_status`");
+    http_queries.push_back(aRow);
+    aRow = new http_query;
             
     aRow = new http_query;
     aRow->query.append((char *)  "CREATE TABLE IF NOT EXISTS mysql.`http_current_status` ("
@@ -491,6 +496,14 @@ int updateContent(MYSQL* conn) {
         ") ENGINE=MEMORY DEFAULT CHARSET=latin1");
     http_queries.push_back(aRow);
     
+    
+    
+    aRow = new http_query;
+    aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_last_status`");
+    http_queries.push_back(aRow);
+    aRow = new http_query;
+    
+    
     aRow = new http_query;
     aRow->query.append((char *)  "CREATE TABLE IF NOT EXISTS mysql.`http_last_status` ("
         "`VARIABLE_NAME` varchar(64) CHARACTER SET utf8 NOT NULL DEFAULT '',"
@@ -499,6 +512,13 @@ int updateContent(MYSQL* conn) {
         "PRIMARY KEY (`VARIABLE_NAME`,`SERVER_NAME`)"
         ") ENGINE=MEMORY DEFAULT CHARSET=latin1");
     http_queries.push_back(aRow);
+    
+  //  aRow = new http_query;
+  //  aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_status_history`");
+  //  http_queries.push_back(aRow);
+  //  aRow = new http_query;
+    
+    
     
     aRow = new http_query;
     aRow->query.append((char *) "CREATE TABLE IF NOT EXISTS mysql.`http_status_history` ("
@@ -510,6 +530,10 @@ int updateContent(MYSQL* conn) {
     http_queries.push_back(aRow);
     
     
+    aRow = new http_query;
+    aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_variables`");
+    http_queries.push_back(aRow);
+    aRow = new http_query;
     
     
     aRow = new http_query;
@@ -522,6 +546,12 @@ int updateContent(MYSQL* conn) {
     http_queries.push_back(aRow);
     
     aRow = new http_query;
+    aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_status`");
+    http_queries.push_back(aRow);
+    aRow = new http_query;
+    
+    
+    aRow = new http_query;
     aRow->query.append((char *) "CREATE TABLE IF NOT EXISTS mysql.`http_status` ("
         "`VARIABLE_NAME` varchar(64) CHARACTER SET utf8 NOT NULL DEFAULT '',"
         "`VARIABLE_VALUE` varchar(1024) CHARACTER SET utf8 DEFAULT NULL,"
@@ -529,6 +559,12 @@ int updateContent(MYSQL* conn) {
         "PRIMARY KEY (`VARIABLE_NAME`,`SERVER_NAME`)"
         ") ENGINE=MEMORY DEFAULT CHARSET=latin1");
     http_queries.push_back(aRow);
+    
+    
+    aRow = new http_query;
+    aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_tables`");
+    http_queries.push_back(aRow);
+    aRow = new http_query;
     
     aRow = new http_query;
     aRow->query.append((char *) "CREATE TABLE IF NOT EXISTS mysql.http_tables ("
@@ -560,6 +596,12 @@ int updateContent(MYSQL* conn) {
     
     
     aRow = new http_query;
+    aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_columns`");
+    http_queries.push_back(aRow);
+    aRow = new http_query;
+    
+    
+    aRow = new http_query;
     aRow->query.append((char *) "CREATE TABLE IF NOT EXISTS mysql.http_columns ("
     "`TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',"
     "`TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',"
@@ -585,6 +627,12 @@ int updateContent(MYSQL* conn) {
     "PRIMARY KEY (`TABLE_SCHEMA`, `TABLE_NAME`,`COLUMN_NAME`,`SERVER_NAME`)"
    ") ENGINE=MEMORY");
     http_queries.push_back(aRow);
+    
+    aRow = new http_query;
+    aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_queries`");
+    http_queries.push_back(aRow);
+    aRow = new http_query;
+    
     
     aRow = new http_query;
     aRow->query.append((char *) "CREATE TABLE IF NOT EXISTS mysql.http_queries("
@@ -621,7 +669,7 @@ int updateContent(MYSQL* conn) {
     "PRIMARY KEY (`DIGEST`,`SCHEMA_NAME`, `SERVER_NAME`)"
     ") ENGINE=MEMORY");
     http_queries.push_back(aRow);
-    
+   
     } // first_run 
     
     
@@ -1322,7 +1370,7 @@ int updateContent(MYSQL* conn) {
     aRow->query.append((char *) "1.0");
     if (use_aes_encrypt){
     aRow->query.append((char *) "\",\"queries\":\"' ,"
-            "( SELECT HEX(COMPRESS(AES_ENCRYPT(");
+            "( SELECT COALESCE(HEX(COMPRESS(AES_ENCRYPT(");
     aRow->query.append((char *) "GROUP_CONCAT(CONCAT('{"
             "\"SERVER_NAME\":\"',SERVER_NAME,'\","
             "\"SCHEMA_NAME\":\"',COALESCE(SCHEMA_NAME,''),'\","
@@ -1331,7 +1379,7 @@ int updateContent(MYSQL* conn) {
             "\"FIRST_SEEN\":\"', COALESCE(FIRST_SEEN,''),'\","
             "\"LAST_SEEN\":\"',COALESCE(LAST_SEEN,''),'\"}'    ) SEPARATOR ',\\n'),'");
     aRow->query.append(aes_key);
-    aRow->query.append("'))) FROM mysql.http_queries) ");
+    aRow->query.append("'))),'') FROM mysql.http_queries) ");
     
  
     aRow->query.append((char *) ",'\",\"variables\":\"' ,"
@@ -1379,13 +1427,13 @@ int updateContent(MYSQL* conn) {
         
     
     aRow->query.append((char *) "\",\"queries\":\"' ,"
-            "( SELECT HEX(COMPRESS(GROUP_CONCAT(CONCAT('{"
+            "( SELECT COALESCE(HEX(COMPRESS(GROUP_CONCAT(CONCAT('{"
             "\"SERVER_NAME\":\"',SERVER_NAME,'\","
             "\"SCHEMA_NAME\":\"',COALESCE(SCHEMA_NAME,''),'\","
             "\"DIGEST\":\"', COALESCE(DIGEST,''),'\","
             "\"DIGEST_TEXT\":\"', COALESCE(DIGEST_TEXT,''),'\","
             "\"FIRST_SEEN\":\"', COALESCE(FIRST_SEEN,''),'\","
-            "\"LAST_SEEN\":\"',COALESCE(LAST_SEEN,''),'\"}'    ) SEPARATOR ',\\n'))) FROM mysql.http_queries) ");
+            "\"LAST_SEEN\":\"',COALESCE(LAST_SEEN,''),'\"}'    ) SEPARATOR ',\\n'))),'') FROM mysql.http_queries) ");
     
  
     aRow->query.append((char *) ",'\",\"variables\":\"' ,"
