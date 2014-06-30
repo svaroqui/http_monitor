@@ -50,7 +50,7 @@ mysql_mutex_t LOCK_content;
 
 /* connection parameters */
 const char *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
-static int interval=0;
+
 
 
 //int checkContentExisist(http_content_row *thisRow);
@@ -277,6 +277,104 @@ String getStatusHistoryPosition(MYSQL* conn) {
     return  pos;
 }
 
+
+String getExplain(MYSQL* conn, Server* url,I_List<http_query>* http_queries) {
+    MYSQL_ROW row;
+    MYSQL_RES *result=NULL;
+    
+    String Server; 
+    std::string stdServer;
+    stdServer.append(url->getPath().str);
+    Server.append(remove_letter(stdServer,'/').c_str() );
+    
+    http_query *aRow; 
+   
+    aRow = new http_query;
+    aRow->query.append((char *) "CREATE TEMPORARY TABLE IF NOT EXISTS mysql.tmp_explain ("
+        "`ID` smallint(6) , "
+        "`SELECT_TYPE`  varchar(64),"
+        "`TABLE` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+        "`TYPE` varchar(1024),"
+        "`POSSIBLE_KEYS` varchar(1024) ,"
+        "`KEY` varchar(1024) ,"
+        "`KEY_LEN` smallint(6) ,"
+        "`REF` varchar(1024) ,"
+        "`ROWS` INT UNSIGNED ,"
+        "`EXTRA` varchar(1024) "
+        ") ENGINE=MEMORY ");
+    http_queries->push_back(aRow);
+   
+    String saltQuery=0;
+    saltQuery.append((char *) "SET @salt_key='");
+    saltQuery.append(salt_key);
+    saltQuery.append((char *) "'");
+    runQueryConn(conn,&saltQuery);
+     
+    String query =0 ;
+    query.append((char*) "SELECT CURRENT_SCHEMA ,SQL_TEXT, DIGEST FROM  mysql.http_queries_sample WHERE SERVER_NAME=CONV(LEFT(MD5(CONCAT(@salt_key,'");
+    query.append(Server) ;
+    query.append( (char*) "',@salt_key) ), 16), 16, 10) AND EVENT_NAME like '%select'");
+   
+    if(!runQueryConn(conn,&query))
+    {
+       
+    result = mysql_store_result(conn);
+    if (result ) {
+    
+    while ((row = mysql_fetch_row(result))){
+         ulong *lengths = mysql_fetch_lengths(result);
+        
+        aRow = new http_query;
+         aRow->query.append((char *) "SELECT spider_direct_sql('EXPLAIN ");
+         aRow->query.append(row[1],lengths[1]);
+         aRow->query.append((char *) "','mysql.tmp_explain','host \"");
+         aRow->query.append(url->getHost().str);
+         aRow->query.append((char *) "\" ,user \"");
+         aRow->query.append(http_monitor::conn_user);
+         aRow->query.append((char *) "\" ,password  \"");
+         aRow->query.append(http_monitor::conn_password);
+         aRow->query.append((char *) "\" ,port  \"");
+         aRow->query.append(url->getPort().str);
+         aRow->query.append((char *)"\" ,database \"");
+         aRow->query.append(row[0],lengths[0]);
+         aRow->query.append((char *) "\" ')");
+         http_queries->push_back(aRow);
+      sql_print_information ("adding explain query ",  aRow->query.c_ptr());
+       
+         aRow = new http_query;
+         aRow->query.append((char *) "REPLACE INTO mysql.http_explain SELECT * , "); 
+         aRow->query.append(row[2],lengths[2]);
+         aRow->query.append((char *)  ",CONV(LEFT(MD5(CONCAT(@salt_key,'");
+         
+         aRow->query.append(Server);
+         aRow->query.append("',@salt_key) ), 16), 16, 10) FROM mysql.tmp_explain");
+         http_queries->push_back(aRow); 
+       
+         
+         aRow = new http_query;
+         aRow->query.append((char *) "TRUNCATE mysql.tmp_explain ");
+         http_queries->push_back(aRow); 
+       
+    }
+  
+    mysql_free_result(result); 
+    }
+    }   
+  /*
+     http_query *queryinlist;
+    I_List_iterator<http_query> contentsIter(http_queries);
+    while ((queryinlist = contentsIter++)) {
+         if(runQueryConn( conn ,&queryinlist->query)){
+           finish_with_error(conn, &queryinlist->query);  
+       } 
+    } 
+    */
+     
+    return  0;
+}
+
+
+
 std::string remove_letter( std::string str, char c )
 {
    str.erase( std::remove( str.begin(), str.end(), c ), str.end() ) ;
@@ -394,8 +492,38 @@ int updateContent(MYSQL* conn) {
     
     http_queries.push_back(aRow);
     
+    
+      
+    http_query *event;   
+    event = new http_query;
+    event->query.append((char *) "CREATE EVENT IF NOT EXISTS http_monitor_explain " 
+    "ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 2 MINUTE "
+    " DO "
+    " BEGIN ");
+    event->query.append((char *) "SET @salt_key='");
+    event->query.append(salt_key);
+    event->query.append((char *) "';");
+  
     if (first_run){
   
+    aRow = new http_query;
+    aRow->query.append((char *) "DROP EVENT IF EXISTS mysql.`_http_explain_statement`");
+    http_queries.push_back(aRow); 
+        
+    aRow = new http_query;
+    aRow->query.append((char *) "DROP PROCEDURE IF EXISTS mysql.`_http_explain_statement`");
+    http_queries.push_back(aRow);  
+    
+    aRow = new http_query;
+    aRow->query.append((char *) "REPLACE INTO `proc` VALUES ('mysql','_http_explain_statement','PROCEDURE','_http_explain_statement','SQL','MODIFIES_SQL_DATA','YES','INVOKER',0x696E204C5F535256207465787420,'',"
+    "0x6D61696E5F626F64793A20626567696E0A4445434C41524520657869745F6C6F6F7020424F4F4C45414E3B200A202020200A6465636C61726520435F43555252454E545F534348454D41207661726368617228313238293B0A6465636C61726520435F4556454E545F4E414D4520766172636861722831323829203B0A6465636C61726520435F555345522C435F504153532C435F484F535420766172636861722831323829203B0A0A6465636C61726520435F53514C5F544558542076617263686172283530303029203B0A6465636C61726520435F504F52542C435F44494745535420626967696E74203B0A6465636C61726520435F5345525645525F4E414D4520626967696E743B0A6465636C6172652063757220637572736F7220666F722053454C4543542043555252454E545F534348454D412C4556454E545F4E414D45202C53514C5F544558542C20444947455354202C5345525645525F4E414D450946524F4D2020206D7973716C2E687474705F717565726965735F73616D706C65205748455245205345525645525F4E414D453D434F4E56284C454654284D443528434F4E434154284073616C745F6B65792C204C5F535256202C4073616C745F6B65792920292C203136292C2031362C2031302920414E44204556454E545F4E414D45206C696B65272573656C6563742720616E642053514C5F54455854206E6F74206C696B6520276578706C61696E2527203B0A4445434C41524520434F4E54494E55452048414E444C455220464F52204E4F5420464F554E442053455420657869745F6C6F6F70203D20545255453B0A0A53454C4543542044495354494E435420484F53542C20555345524E414D452C50415353574F52442C20504F52542020494E544F202020435F484F53542C435F555345522C20435F504153532C20435F504F5254202046524F4D206D7973716C2E73657276657273205748455245205345525645525F4E414D45206C696B6520434F4E4341542827687474705F255F272C4C5F53525620293B0A20202020202020200A204352454154452054454D504F52415259205441424C45204946204E4F542045584953545320746D705F6578706C61696E20280A20202020202020206049446020736D616C6C696E74283629202C200A20202020202020206053454C4543545F54595045602076617263686172283634292C090A2020202020202020605441424C4560207661726368617228363429202C0A20202020202020206054595045602076617263686172283130323429202C0A202020202020202060504F535349424C455F4B455953602076617263686172283130323429202C0A2020202020202020604B4559602076617263686172283130323429202C0A2020202020202020604B45595F4C454E6020736D616C6C696E74283629202C0A2020202020202020605245466020766172636861722831303234292C0A202020202020202060524F57536020494E5420554E5349474E4544202C0A20202020202020206045585452416020766172636861722831303234290A20202020202020202920454E47494E453D4D454D4F5259203B0A0A0A20202020202020200A6F70656E206375723B0A6375725F6C6F6F703A204C4F4F500A200A2020202066657463682063757220696E746F20435F43555252454E545F534348454D412C435F4556454E545F4E414D45202C435F53514C5F544558542C20435F444947455354202C435F5345525645525F4E414D453B0A09494620657869745F6C6F6F70205448454E0A2020202020202020434C4F5345206375723B0A20202020202020204C45415645206375725F6C6F6F703B0A20202020454E442049463B0A202053454C454354207370696465725F6469726563745F73716C28434F4E43415428224558504C41494E2022202C435F53514C5F54455854292C22746D705F6578706C61696E222C20636F6E6361742822686F7374205C22222C20435F484F53542C20225C22202C75736572205C22222C20435F555345522C20225C22202C70617373776F726420205C22222C20435F504153532C20225C22202C706F727420205C22222C20435F504F52542C20225C22202C6461746162617365205C22222C20435F43555252454E545F534348454D412C20225C2220222929203B0A20205245504C41434520494E544F206D7973716C2E687474705F6578706C61696E2053454C4543542049442C53454C4543545F545950452C434F4E56284C454654284D443528434F4E434154284073616C745F6B65792C20605441424C4560202C4073616C745F6B65792920292C203136292C2031362C20313029202C206054595045602C60504F535349424C455F4B455953602C604B4559602C20604B45595F4C454E602C60524546602C60524F57536020435F4449474553542C20435F5345525645525F4E414D452046524F4D206D7973716C2E746D705F6578706C61696E3B200A205452554E43415445206D7973716C2E60746D705F6578706C61696E603B0A454E44204C4F4F50206375725F6C6F6F703B20200A656E643B,'skysql@%','2014-06-30 12:53:08','2014-06-30 12:53:08','','use spider_sql_direct to get explain plan','utf8','utf8_general_ci','latin1_swedish_ci',0x6D61696E5F626F64793A20626567696E0A4445434C41524520657869745F6C6F6F7020424F4F4C45414E3B200A202020200A6465636C61726520435F43555252454E545F534348454D41207661726368617228313238293B0A6465636C61726520435F4556454E545F4E414D4520766172636861722831323829203B0A6465636C61726520435F555345522C435F504153532C435F484F535420766172636861722831323829203B0A0A6465636C61726520435F53514C5F544558542076617263686172283530303029203B0A6465636C61726520435F504F52542C435F44494745535420626967696E74203B0A6465636C61726520435F5345525645525F4E414D4520626967696E743B0A6465636C6172652063757220637572736F7220666F722053454C4543542043555252454E545F534348454D412C4556454E545F4E414D45202C53514C5F544558542C20444947455354202C5345525645525F4E414D450946524F4D2020206D7973716C2E687474705F717565726965735F73616D706C65205748455245205345525645525F4E414D453D434F4E56284C454654284D443528434F4E434154284073616C745F6B65792C204C5F535256202C4073616C745F6B65792920292C203136292C2031362C2031302920414E44204556454E545F4E414D45206C696B65272573656C6563742720616E642053514C5F54455854206E6F74206C696B6520276578706C61696E2527203B0A4445434C41524520434F4E54494E55452048414E444C455220464F52204E4F5420464F554E442053455420657869745F6C6F6F70203D20545255453B0A0A53454C4543542044495354494E435420484F53542C20555345524E414D452C50415353574F52442C20504F52542020494E544F202020435F484F53542C435F555345522C20435F504153532C20435F504F5254202046524F4D206D7973716C2E73657276657273205748455245205345525645525F4E414D45206C696B6520434F4E4341542827687474705F255F272C4C5F53525620293B0A20202020202020200A204352454154452054454D504F52415259205441424C45204946204E4F542045584953545320746D705F6578706C61696E20280A20202020202020206049446020736D616C6C696E74283629202C200A20202020202020206053454C4543545F54595045602076617263686172283634292C090A2020202020202020605441424C4560207661726368617228363429202C0A20202020202020206054595045602076617263686172283130323429202C0A202020202020202060504F535349424C455F4B455953602076617263686172283130323429202C0A2020202020202020604B4559602076617263686172283130323429202C0A2020202020202020604B45595F4C454E6020736D616C6C696E74283629202C0A2020202020202020605245466020766172636861722831303234292C0A202020202020202060524F57536020494E5420554E5349474E4544202C0A20202020202020206045585452416020766172636861722831303234290A20202020202020202920454E47494E453D4D454D4F5259203B0A0A0A20202020202020200A6F70656E206375723B0A6375725F6C6F6F703A204C4F4F500A200A2020202066657463682063757220696E746F20435F43555252454E545F534348454D412C435F4556454E545F4E414D45202C435F53514C5F544558542C20435F444947455354202C435F5345525645525F4E414D453B0A09494620657869745F6C6F6F70205448454E0A2020202020202020434C4F5345206375723B0A20202020202020204C45415645206375725F6C6F6F703B0A20202020454E442049463B0A202053454C454354207370696465725F6469726563745F73716C28434F4E43415428224558504C41494E2022202C435F53514C5F54455854292C22746D705F6578706C61696E222C20636F6E6361742822686F73742022222C20435F484F53542C202222202C757365722022222C20435F555345522C202222202C70617373776F7264202022222C20435F504153532C202222202C706F7274202022222C20435F504F52542C202222202C64617461626173652022222C20435F43555252454E545F534348454D412C20222220222929203B0A20205245504C41434520494E544F206D7973716C2E687474705F6578706C61696E2053454C4543542049442C53454C4543545F545950452C434F4E56284C454654284D443528434F4E434154284073616C745F6B65792C20605441424C4560202C4073616C745F6B65792920292C203136292C2031362C20313029202C206054595045602C60504F535349424C455F4B455953602C604B4559602C20604B45595F4C454E602C60524546602C60524F57536020435F4449474553542C20435F5345525645525F4E414D452046524F4D206D7973716C2E746D705F6578706C61696E3B200A205452554E43415445206D7973716C2E60746D705F6578706C61696E603B0A454E44204C4F4F50206375725F6C6F6F703B20200A656E643B)");
+    http_queries.push_back(aRow); 
+    
+  
+    
+    
+            
+            
     aRow = new http_query;
     aRow->query.append((char *) "DROP TABLE IF EXISTS mysql.`http_contents`");
     http_queries.push_back(aRow);  
@@ -491,18 +619,60 @@ int updateContent(MYSQL* conn) {
     aRow = new http_query;
     aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_current_status`");
     http_queries.push_back(aRow);
-    aRow = new http_query;
             
     aRow = new http_query;
     aRow->query.append((char *)  "CREATE TABLE IF NOT EXISTS mysql.`http_current_status` ("
         "`VARIABLE_NAME` varchar(64) CHARACTER SET utf8 NOT NULL DEFAULT '',"
         "`VARIABLE_VALUE` varchar(1024) CHARACTER SET utf8 DEFAULT NULL,"
-       "`SERVER_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+        "`SERVER_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
         "PRIMARY KEY (`VARIABLE_NAME`,`SERVER_NAME`)"
         ") ENGINE=MEMORY DEFAULT CHARSET=latin1");
     http_queries.push_back(aRow);
     
     
+    aRow = new http_query;
+    aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_key_column`");
+    http_queries.push_back(aRow);
+    
+    aRow = new http_query;
+    aRow->query.append((char *)  "CREATE TABLE IF NOT EXISTS mysql.`http_key_column` ("
+       "`CONSTRAINT_CATALOG` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+       "`CONSTRAINT_SCHEMA` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+       "`CONSTRAINT_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+       "`TABLE_CATALOG` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+       "`TABLE_SCHEMA` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+       "`TABLE_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+       "`COLUMN_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+       "`ORDINAL_POSITION` bigint(10) NOT NULL DEFAULT '0',"
+       "`POSITION_IN_UNIQUE_CONSTRAINT` bigint(10) DEFAULT NULL,"
+       "`REFERENCED_TABLE_SCHEMA` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+       "`REFERENCED_TABLE_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+       "`REFERENCED_COLUMN_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+       "`SERVER_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+       "PRIMARY KEY (CONSTRAINT_CATALOG,CONSTRAINT_SCHEMA,CONSTRAINT_NAME, SERVER_NAME)"
+       ") ENGINE=MEMORY DEFAULT CHARSET=latin1");
+    http_queries.push_back(aRow);
+    
+    
+
+    
+    aRow = new http_query;
+    aRow->query.append((char *)  "CREATE TABLE IF NOT EXISTS mysql.`http_explain` ("
+        "`ID` smallint(6) NOT NULL DEFAULT '0'," 
+        "`SELECT_TYPE` varchar(64) CHARACTER SET utf8 NOT NULL DEFAULT '',"
+        "`TABLE` BIGINT UNSIGNED NOT NULL DEFAULT 0,  " 
+        "`TYPE` varchar(1024) CHARACTER SET utf8 NOT NULL DEFAULT '',"
+        "`POSSIBLE_KEYS` varchar(1024) CHARACTER SET utf8 NOT NULL DEFAULT '',"
+        "`KEY` varchar(1024) CHARACTER SET utf8 NOT NULL DEFAULT '',"
+        "`KEY_LEN` smallint(6) NOT NULL DEFAULT '0'," 
+        "`REF` varchar(1024) CHARACTER SET utf8 NOT NULL DEFAULT '',"
+        "`ROWS` INT UNSIGNED NOT NULL DEFAULT 0,"
+        "`EXTRA` varchar(1024) CHARACTER SET utf8 NOT NULL DEFAULT '',"
+        "`DIGEST` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+        "`SERVER_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+        "PRIMARY KEY (`SERVER_NAME`,`DIGEST`,`ID`)"
+        ") ENGINE=MEMORY DEFAULT CHARSET=latin1");
+    http_queries.push_back(aRow);
     
     aRow = new http_query;
     aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_last_status`");
@@ -644,7 +814,7 @@ int updateContent(MYSQL* conn) {
     aRow->query.append((char *) "CREATE TABLE IF NOT EXISTS mysql.http_queries("
     "`SCHEMA_NAME`  BIGINT UNSIGNED NOT NULL DEFAULT 0,"
     "`DIGEST` varchar(32) DEFAULT NULL,"
-    "`DIGEST_TEXT` varchar(20000),"
+    "`DIGEST_TEXT` varchar(5000),"
     "`COUNT_STAR` bigint(20) unsigned NOT NULL,"
     "`SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,"
     "`MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,"
@@ -676,7 +846,25 @@ int updateContent(MYSQL* conn) {
     ") ENGINE=MEMORY");
     http_queries.push_back(aRow);
    
+    aRow = new http_query;
+    aRow->query.append((char *)  "DROP TABLE IF EXISTS mysql.`http_queries_sample`");
+    http_queries.push_back(aRow);
+    
+    aRow = new http_query;
+    aRow->query.append((char *) "CREATE TABLE IF NOT EXISTS mysql.http_queries_sample ("
+    "`CURRENT_SCHEMA`varchar(128) NOT NULL default '' ,"
+    "`EVENT_NAME` varchar(128) NOT NULL default '',"
+    "`SQL_TEXT` varchar(5000),"
+    "`DIGEST` bigint(20) unsigned NOT NULL,"
+    "`SERVER_NAME` BIGINT UNSIGNED NOT NULL DEFAULT 0,"
+    "PRIMARY KEY (`DIGEST`,`CURRENT_SCHEMA`, `SERVER_NAME`)"
+    ") ENGINE=MEMORY"); 
+  
+     http_queries.push_back(aRow);
+    
     } // first_run 
+    
+    
     
     
     aRow = new http_query;
@@ -825,10 +1013,7 @@ int updateContent(MYSQL* conn) {
       
       i++;
     
-       String Server; 
-   /* Server.append(http_monitor::conn_host);
-    Server.append(":");
-    Server.append_ulonglong(http_monitor::conn_port);*/
+    String Server; 
     std::string stdServer;
     stdServer.append(url->getPath().str);
     Server.append(remove_letter(stdServer,'/').c_str() );
@@ -913,8 +1098,37 @@ int updateContent(MYSQL* conn) {
     aRow->query.append( Server);
     if (use_spider)  aRow->query.append("\"'");
     else aRow->query.append("/COLUMNS\"");
-  
+    http_queries.push_back(aRow);
 
+    aRow = new http_query;
+    aRow->query.append((char *) "DROP TABLE IF EXISTS mysql.http_");
+    aRow->query.append(Server);
+    aRow->query.append((char *) "_key_column_usage");
+    http_queries.push_back(aRow);  
+    
+    aRow = new http_query;
+    aRow->query.append((char *) "CREATE TABLE IF NOT EXISTS mysql.http_");
+    aRow->query.append(Server);
+    aRow->query.append((char *) "_key_column_usage ("
+    "`CONSTRAINT_CATALOG` varchar(512) NOT NULL DEFAULT '',"
+    "`CONSTRAINT_SCHEMA` varchar(64) NOT NULL DEFAULT '',"
+    "`CONSTRAINT_NAME` varchar(64) NOT NULL DEFAULT '',"
+    "`TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',"
+    "`TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',"
+    "`TABLE_NAME` varchar(64) NOT NULL DEFAULT '',"
+    "`COLUMN_NAME` varchar(64) NOT NULL DEFAULT '',"
+    "`ORDINAL_POSITION` bigint(10) NOT NULL DEFAULT '0',"
+    "`POSITION_IN_UNIQUE_CONSTRAINT` bigint(10) DEFAULT NULL,"
+    "`REFERENCED_TABLE_SCHEMA` varchar(64) DEFAULT NULL,"
+    "`REFERENCED_TABLE_NAME` varchar(64) DEFAULT NULL,"
+    "`REFERENCED_COLUMN_NAME` varchar(64) DEFAULT NULL");
+   
+    if (use_spider)  aRow->query.append((char *) ") ENGINE=SPIDER COMMENT='table \"KEY_COLUMN_USAGE\",srv \"http_is_");
+    else aRow->query.append((char *)") ENGINE=FEDERATED CONNECTION=\"http_is_");
+    aRow->query.append( Server);
+    if (use_spider)  aRow->query.append("\"'");
+    else aRow->query.append("/KEY_COLUMN_USAGE\"");
+    
     http_queries.push_back(aRow);  
     
     aRow = new http_query;
@@ -967,6 +1181,68 @@ int updateContent(MYSQL* conn) {
     http_queries.push_back(aRow);  
     
     
+    
+    aRow = new http_query;
+    aRow->query.append((char *) "DROP TABLE IF EXISTS mysql.http_");
+    aRow->query.append(Server);
+    aRow->query.append((char *) "_events_statements_history_long");
+    http_queries.push_back(aRow); 
+    
+    
+    aRow = new http_query;
+    aRow->query.append((char *) "CREATE TABLE IF NOT EXISTS mysql.http_");
+    aRow->query.append(Server);
+    aRow->query.append((char *) "_events_statements_history_long ("
+    "`THREAD_ID` bigint(20) unsigned NOT NULL,"
+    "`EVENT_ID` bigint(20) unsigned NOT NULL,"
+    "`END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,"
+    "`EVENT_NAME` varchar(128) NOT NULL,"
+    "`SOURCE` varchar(64) DEFAULT NULL,"
+    "`TIMER_START` bigint(20) unsigned DEFAULT NULL,"
+    "`TIMER_END` bigint(20) unsigned DEFAULT NULL,"
+    "`TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,"
+    "`LOCK_TIME` bigint(20) unsigned NOT NULL,"
+    "`SQL_TEXT` longtext,"
+    "`DIGEST` varchar(32) DEFAULT NULL,"
+    "`DIGEST_TEXT` longtext,"
+    "`CURRENT_SCHEMA` varchar(64) DEFAULT NULL,"
+    "`OBJECT_TYPE` varchar(64) DEFAULT NULL,"
+    "`OBJECT_SCHEMA` varchar(64) DEFAULT NULL,"
+    "`OBJECT_NAME` varchar(64) DEFAULT NULL,"
+    "`OBJECT_INSTANCE_BEGIN` bigint(20) unsigned DEFAULT NULL,"
+    "`MYSQL_ERRNO` int(11) DEFAULT NULL,"
+    "`RETURNED_SQLSTATE` varchar(5) DEFAULT NULL,"
+    "`MESSAGE_TEXT` varchar(128) DEFAULT NULL,"
+    "`ERRORS` bigint(20) unsigned NOT NULL,"
+    "`WARNINGS` bigint(20) unsigned NOT NULL,"
+    "`ROWS_AFFECTED` bigint(20) unsigned NOT NULL,"
+    "`ROWS_SENT` bigint(20) unsigned NOT NULL,"
+    "`ROWS_EXAMINED` bigint(20) unsigned NOT NULL,"
+    "`CREATED_TMP_DISK_TABLES` bigint(20) unsigned NOT NULL,"
+    "`CREATED_TMP_TABLES` bigint(20) unsigned NOT NULL,"
+    "`SELECT_FULL_JOIN` bigint(20) unsigned NOT NULL,"
+    "`SELECT_FULL_RANGE_JOIN` bigint(20) unsigned NOT NULL,"
+    "`SELECT_RANGE` bigint(20) unsigned NOT NULL,"
+    "`SELECT_RANGE_CHECK` bigint(20) unsigned NOT NULL,"
+    "`SELECT_SCAN` bigint(20) unsigned NOT NULL,"
+    "`SORT_MERGE_PASSES` bigint(20) unsigned NOT NULL,"
+    "`SORT_RANGE` bigint(20) unsigned NOT NULL,"
+    "`SORT_ROWS` bigint(20) unsigned NOT NULL,"
+    "`SORT_SCAN` bigint(20) unsigned NOT NULL,"
+    "`NO_INDEX_USED` bigint(20) unsigned NOT NULL,"
+    "`NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,"
+    "`NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,"
+    "`NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL");
+    if (use_spider)  aRow->query.append((char *) ") ENGINE=SPIDER COMMENT='table \"events_statements_history_long\",srv \"http_ps_");
+    else aRow->query.append((char *)   ") ENGINE=FEDERATED CONNECTION=\"http_ps_");
+
+    aRow->query.append( Server);
+    if (use_spider)  aRow->query.append("\"'");
+    else aRow->query.append("/events_statements_history_long\"");
+    http_queries.push_back(aRow);
+    
+    
+    
     aRow = new http_query;
     aRow->query.append((char *) "DROP TABLE IF EXISTS mysql.http_");
     aRow->query.append(Server);
@@ -1009,6 +1285,12 @@ int updateContent(MYSQL* conn) {
     
     http_queries.push_back(aRow);  
   
+    aRow = new http_query;
+    aRow->query.append((char *) "FLUSH TABLES");
+   
+    http_queries.push_back(aRow);  
+    
+    
     } // if first_run
    
     aRow = new http_query;
@@ -1033,12 +1315,26 @@ int updateContent(MYSQL* conn) {
     aRow->query.append((char *) "',`SCHEMA_NAME`, '");
     aRow->query.append(salt_key);
     aRow->query.append((char *) "')), 16), 16, 10) ," );
-    aRow->query.append((char *) "DIGEST,DIGEST_TEXT, COUNT_STAR,SUM_TIMER_WAIT,MIN_TIMER_WAIT,AVG_TIMER_WAIT,MAX_TIMER_WAIT,SUM_LOCK_TIME,SUM_ERRORS,SUM_WARNINGS,SUM_ROWS_AFFECTED,SUM_ROWS_SENT,SUM_ROWS_EXAMINED,SUM_CREATED_TMP_DISK_TABLES,SUM_CREATED_TMP_TABLES,SUM_SELECT_FULL_JOIN,SUM_SELECT_FULL_RANGE_JOIN,SUM_SELECT_RANGE,SUM_SELECT_RANGE_CHECK,SUM_SELECT_SCAN,SUM_SORT_MERGE_PASSES,SUM_SORT_RANGE,SUM_SORT_ROWS,SUM_SORT_SCAN,SUM_NO_INDEX_USED,SUM_NO_GOOD_INDEX_USED,FIRST_SEEN,LAST_SEEN,CONV(LEFT(MD5(CONCAT(@salt_key,'");
+    aRow->query.append((char *) "CONV(LEFT(DIGEST, 16), 16, 10),DIGEST_TEXT, COUNT_STAR,SUM_TIMER_WAIT,MIN_TIMER_WAIT,AVG_TIMER_WAIT,MAX_TIMER_WAIT,SUM_LOCK_TIME,SUM_ERRORS,SUM_WARNINGS,SUM_ROWS_AFFECTED,SUM_ROWS_SENT,SUM_ROWS_EXAMINED,SUM_CREATED_TMP_DISK_TABLES,SUM_CREATED_TMP_TABLES,SUM_SELECT_FULL_JOIN,SUM_SELECT_FULL_RANGE_JOIN,SUM_SELECT_RANGE,SUM_SELECT_RANGE_CHECK,SUM_SELECT_SCAN,SUM_SORT_MERGE_PASSES,SUM_SORT_RANGE,SUM_SORT_ROWS,SUM_SORT_SCAN,SUM_NO_INDEX_USED,SUM_NO_GOOD_INDEX_USED,FIRST_SEEN,LAST_SEEN,CONV(LEFT(MD5(CONCAT(@salt_key,'");
     aRow->query.append(Server);
     aRow->query.append("',@salt_key) ), 16), 16, 10) FROM  mysql.http_");
     aRow->query.append(Server);
     aRow->query.append((char *) "_events_statements_summary_by_digest");
     http_queries.push_back(aRow);
+    
+    
+    
+    aRow = new http_query;
+    aRow->query.append((char *) "REPLACE INTO mysql.http_queries_sample SELECT ");
+    aRow->query.append((char *) "CURRENT_SCHEMA,EVENT_NAME,SQL_TEXT, CONV(LEFT(DIGEST, 16), 16, 10),CONV(LEFT(MD5(CONCAT(@salt_key,'");
+    aRow->query.append(Server);
+    aRow->query.append("',@salt_key) ), 16), 16, 10) FROM  mysql.http_");
+    aRow->query.append(Server);
+    aRow->query.append((char *) "_events_statements_history_long");
+    http_queries.push_back(aRow);
+    
+    
+    
     
     aRow = new http_query;
     aRow->query.append((char *) "REPLACE INTO mysql.http_columns SELECT "
@@ -1287,11 +1583,44 @@ int updateContent(MYSQL* conn) {
     aRow->query.append(Server);
     aRow->query.append((char *)"',@salt_key) ), 16), 16, 10) ;");
     http_queries.push_back(aRow);
- 
+    
+    
+    aRow = new http_query;
+    aRow->query.append((char *) "REPLACE INTO mysql.http_key_column(CONSTRAINT_CATALOG,CONSTRAINT_SCHEMA,CONSTRAINT_NAME,TABLE_CATALOG,TABLE_SCHEMA,TABLE_NAME,COLUMN_NAME,ORDINAL_POSITION,POSITION_IN_UNIQUE_CONSTRAINT,REFERENCED_TABLE_SCHEMA,REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME,SERVER_NAME) SELECT "
+    "CONV(LEFT(MD5(CONCAT(@salt_key,CONSTRAINT_CATALOG,@salt_key) ), 16), 16, 10),"
+    "CONV(LEFT(MD5(CONCAT(@salt_key,CONSTRAINT_SCHEMA,@salt_key) ), 16), 16, 10),"
+    "CONV(LEFT(MD5(CONCAT(@salt_key,CONSTRAINT_NAME,@salt_key) ), 16), 16, 10),"
+    "CONV(LEFT(MD5(CONCAT(@salt_key,TABLE_CATALOG,@salt_key) ), 16), 16, 10),"
+    "CONV(LEFT(MD5(CONCAT(@salt_key,TABLE_SCHEMA,@salt_key) ), 16), 16, 10),"
+    "CONV(LEFT(MD5(CONCAT(@salt_key,TABLE_NAME,@salt_key) ), 16), 16, 10),"
+    "CONV(LEFT(MD5(CONCAT(@salt_key,COLUMN_NAME,@salt_key) ), 16), 16, 10),"
+    "ORDINAL_POSITION,"
+    "POSITION_IN_UNIQUE_CONSTRAINT,"
+    "CONV(LEFT(MD5(CONCAT(@salt_key,REFERENCED_TABLE_SCHEMA,@salt_key) ), 16), 16, 10),"
+    "CONV(LEFT(MD5(CONCAT(@salt_key,REFERENCED_TABLE_NAME,@salt_key) ), 16), 16, 10),"
+    "CONV(LEFT(MD5(CONCAT(@salt_key,REFERENCED_COLUMN_NAME,@salt_key) ), 16), 16, 10), "
+    "CONV(LEFT(MD5(CONCAT(@salt_key,'");
+     aRow->query.append(Server);
+     aRow->query.append((char *)"',@salt_key) ), 16), 16, 10) FROM mysql.http_");
+     aRow->query.append( Server);
+     aRow->query.append("_key_column_usage");
+
+     http_queries.push_back(aRow);
+     
+     
+    event->query.append((char *) "call _http_explain_statement('");
+    event->query.append(Server);
+    event->query.append((char *) "');");
+    
+    
+    //getExplain(conn,url,&http_queries);
     
     } // End loop on remote nodes 
     
-    
+    if (first_run){
+        event->query.append((char *) "END;");
+        http_queries.push_back(event);  
+    }
    
     
     aRow = new http_query;
@@ -1368,6 +1697,7 @@ int updateContent(MYSQL* conn) {
             "\"COM_UPDATE_MULTI\":\"',COALESCE(COLUMN_GET(status,'COM_UPDATE_MULTI' as INTEGER),'1')/COLUMN_GET(status,'UPTIME' as INTEGER),'\","
             "\"COM_INSERT\":\"',COALESCE(COLUMN_GET(status,'COM_INSERT' as INTEGER),'1')/COLUMN_GET(status,'UPTIME' as INTEGER),'\"}'    )   separator ',\\n'),'\\n]}')" 
             "FROM mysql.http_status_history ORDER BY COLUMN_GET(status,'date' as datetime) ), 'text/plain';");
+   
     http_queries.push_back(aRow);
 
     aRow = new http_query;
@@ -1411,7 +1741,7 @@ int updateContent(MYSQL* conn) {
     aRow->query.append((char *) "GROUP_CONCAT(CONCAT('{"
             "\"SERVER_NAME\":\"',SERVER_NAME,'\","
             "\"SCHEMA_NAME\":\"',COALESCE(SCHEMA_NAME,''),'\","
-            "\"DIGEST\":\"', COALESCE(DIGEST,''),'\","
+            "\"DIGEST\":\"', COALESCE(DIGEST,0),'\","
             "\"DIGEST_TEXT\":   \"', COALESCE(DIGEST_TEXT,''),'\","
             "\"FIRST_SEEN\":\"', COALESCE(FIRST_SEEN,''),'\","
             "\"LAST_SEEN\":\"',COALESCE(LAST_SEEN,''),'\"}'    ) SEPARATOR ',\\n'),'");
@@ -1467,7 +1797,7 @@ int updateContent(MYSQL* conn) {
             "( SELECT COALESCE(HEX(COMPRESS(GROUP_CONCAT(CONCAT('{"
             "\"SERVER_NAME\":\"',SERVER_NAME,'\","
             "\"SCHEMA_NAME\":\"',SCHEMA_NAME,'\","
-            "\"DIGEST\":\"', CONV(LEFT(COALESCE(DIGEST,'0'), 16), 16, 10),'\","
+            "\"DIGEST\":\"', COALESCE(DIGEST,0),'\","
             "\"DIGEST_TEXT\":\"', COALESCE(DIGEST_TEXT,''),'\","
             "\"FIRST_SEEN\":\"', COALESCE(FIRST_SEEN,''),'\","
             "\"LAST_SEEN\":\"',COALESCE(LAST_SEEN,''),'\"}'    ) SEPARATOR ',\\n'))),'') FROM mysql.http_queries) ");
