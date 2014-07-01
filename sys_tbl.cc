@@ -497,7 +497,7 @@ int updateContent(MYSQL* conn) {
     http_query *event;   
     event = new http_query;
     event->query.append((char *) "CREATE EVENT IF NOT EXISTS http_monitor_explain " 
-    "ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 2 MINUTE "
+    "ON SCHEDULE EVERY 2 MINUTE "
     " DO "
     " BEGIN ");
     event->query.append((char *) "SET @salt_key='");
