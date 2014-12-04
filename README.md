@@ -53,7 +53,7 @@ Log
  
 Caching Collection 
 ------------------
-Monitor is not sending trends to the back office for every collection, they are cached in the monitor for while and store only changing values. The default values should be fine but can be adjusted when workload consume to many bandwidth.  
+Monitor is not sending trends to the back office for every collection, they are cached in the monitor for a while and store only changing values. The default values should be fine but can be adjusted when workload consume to many bandwidth.  
 
 - http_monitor_history_length=100  
     Number of entry to keep in history queue 
