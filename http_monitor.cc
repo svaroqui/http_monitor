@@ -66,14 +66,36 @@ namespace http_monitor {
     char smtp_authentification;
     char send_mail;
     char use_spider;
+    char use_vmime;
     char use_aes_encrypt;
     char first_run=1;
     char *smtp_user = 0;
     char *smtp_password = 0;
+   
+    
     ulong conn_port=3306; 
     ulong send_timeout; 
     ulong refresh_rate;
+    ulong interval_send_query;
+    ulong interval_send_schema;
+    ulong interval_send_replication;
+    ulong interval_send_variable;
+    ulong interval_send_status;
+    ulong interval_get_query;
+    ulong interval_get_explain;
+    ulong interval_get_schema;
+    ulong interval_get_replication;
+    ulong interval_get_variable;
+    ulong interval_get_status;
+    char send_query;
+    char send_schema;
+    char send_replication;
+    char send_variable;
+    char send_status;
+    char send_dictionary;
+    char http_content;
     ulong history_length;
+    ulong history_uptime;
     ulong history_index;
    
     Server **mysql_servers; ///< list of servers to monitor
@@ -244,7 +266,8 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
 
         SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE ...
      */
-    static COND* make_cond(THD *thd, TABLE_LIST *tables, LEX_STRING *filter) {
+ 
+ /* static COND* make_cond(THD *thd, TABLE_LIST *tables, LEX_STRING *filter) {
         Item_cond_or *res = NULL;
         Name_resolution_context nrc;
         const char *db = tables->db, *table = tables->alias,
@@ -282,6 +305,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
 
         return res;
     }
+   */
 
     /**
       System variables that we want to see in the http_monitor report
@@ -360,7 +384,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
 
  
 
-    int fill_http_monitor(THD *thd, TABLE_LIST *tables, COND *unused) {
+   /* int fill_http_monitor(THD *thd, TABLE_LIST *tables, COND *unused) {
         int res;
         COND *cond;
 
@@ -380,7 +404,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
                 || fill_linux_info(thd, tables);
 
         return res;
-    }
+    }*/
     
     
     /**
@@ -391,7 +415,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
      
         i_s_http_monitor = (ST_SCHEMA_TABLE*) p;
         i_s_http_monitor->fields_info = http_monitor_fields; ///< field descriptor
-        i_s_http_monitor->fill_table = fill_http_monitor; ///< how to fill the I_S table
+       // i_s_http_monitor->fill_table = fill_http_monitor; ///< how to fill the I_S table
         i_s_http_monitor->idx_field1 = 0; ///< virtual index on the 1st col
       
         
@@ -415,7 +439,9 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
         
         if (calculate_server_uid(server_uid_buf))
             return 1;
-
+        salt_key = strdup(server_uid_buf);
+        aes_key = strdup(server_uid_buf);
+        bo_password  = strdup(server_uid_buf);
         prepare_linux_info();
 
         mysql_servers_count = 0;
@@ -610,11 +636,72 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
             "Salt key to anonymize meta data string ",
             NULL, NULL,  "mysecretsalt");
      static MYSQL_SYSVAR_BOOL(use_spider, use_spider,PLUGIN_VAR_OPCMDARG,
-            "Shoud use spider storage engine to access remote nodes default is federatedx",
+            "Shoud use spider storage engine to access remote nodes default is spider off use federatedx",
             NULL, NULL,1);
+     static MYSQL_SYSVAR_BOOL(use_vmime, use_vmime,PLUGIN_VAR_OPCMDARG,
+            "Use vmime to send email default vmime when off use curl",
+            NULL, NULL,1);
+     static MYSQL_SYSVAR_BOOL(send_query, send_query,PLUGIN_VAR_OPCMDARG,
+            "Send queries",
+            NULL, NULL,1);
+     static MYSQL_SYSVAR_BOOL(send_schema, send_schema,PLUGIN_VAR_OPCMDARG,
+            "Send schemas",
+            NULL, NULL,1);
+     static MYSQL_SYSVAR_BOOL(send_replication, send_replication,PLUGIN_VAR_OPCMDARG,
+            "Send replication status",
+            NULL, NULL,1);
+     static MYSQL_SYSVAR_BOOL(send_variable, send_variable,PLUGIN_VAR_OPCMDARG,
+            "Send variables",
+            NULL, NULL,1);
+     static MYSQL_SYSVAR_BOOL(send_status, send_status,PLUGIN_VAR_OPCMDARG,
+            "Send status",
+            NULL, NULL,1);
+      static MYSQL_SYSVAR_BOOL(send_dictionary, send_dictionary,PLUGIN_VAR_OPCMDARG,
+            "Send dictionary",
+            NULL, NULL,1);
+     static MYSQL_SYSVAR_BOOL(http_content, http_content,PLUGIN_VAR_OPCMDARG,
+            "Produce content for http interface",
+            NULL, NULL,0);
+      static MYSQL_SYSVAR_ULONG(history_uptime, history_uptime, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Number of wakeup every refresh rate",
+            NULL, NULL, 1, 1, 60*60*24, 1); 
      static MYSQL_SYSVAR_ULONG(refresh_rate, refresh_rate, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Wait in seconds before gathering information",
             NULL, NULL, 10, 1, 60*60*24, 10); 
+     static MYSQL_SYSVAR_ULONG(interval_send_query, interval_send_query, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Email queries after x refresh rate",
+            NULL, NULL, 30, 1, 60*60*24, 30); 
+     static MYSQL_SYSVAR_ULONG(interval_send_schema, interval_send_schema, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Send schema informations interval in refresh rate",
+            NULL, NULL, 80, 1, 60*60*24, 80); 
+     static MYSQL_SYSVAR_ULONG(interval_send_replication, interval_send_replication, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Send replication informations interval in refresh rate",
+            NULL, NULL, 1, 1, 60*60*24, 1); 
+     static MYSQL_SYSVAR_ULONG(interval_send_variable, interval_send_variable, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Send variable informations interval in refresh rate",
+            NULL, NULL, 60, 1, 60*60*24, 60); 
+     static MYSQL_SYSVAR_ULONG(interval_send_status, interval_send_status, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Send status informations interval in refresh rate ",
+            NULL, NULL, 2, 1, 60*60*24, 2);
+     static MYSQL_SYSVAR_ULONG(interval_get_query, interval_get_query, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Get queries interval in seconds",
+            NULL, NULL, 120, 1, 60*60*24, 120); 
+     static MYSQL_SYSVAR_ULONG(interval_get_explain, interval_get_explain, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Get explain informations interval in seconds",
+            NULL, NULL, 300, 1, 60*60*24, 300); 
+     static MYSQL_SYSVAR_ULONG(interval_get_schema, interval_get_schema, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Get schema informations interval in seconds",
+            NULL, NULL, 120, 1, 60*60*24, 80); 
+     
+     static MYSQL_SYSVAR_ULONG(interval_get_replication, interval_get_replication, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Get replication informations interval in seconds",
+            NULL, NULL, 5, 1, 60*60*24, 5); 
+     static MYSQL_SYSVAR_ULONG(interval_get_variable, interval_get_variable, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Get variable informations interval in seconds",
+            NULL, NULL, 30, 1, 60*60*24, 30); 
+     static MYSQL_SYSVAR_ULONG(interval_get_status, interval_get_status, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "Get status informations interval in in seconds",
+            NULL, NULL, 2, 1, 60*60*24, 2); 
      static MYSQL_SYSVAR_BOOL(error_log, error_log,   PLUGIN_VAR_OPCMDARG, 
             "Trace execution to error log.", 
             NULL, NULL,0);
@@ -656,7 +743,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
             NULL, NULL, "");  
      static MYSQL_SYSVAR_STR(bo_user, bo_user, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Back Office credential",
-            NULL, NULL, "");  
+            NULL, NULL, "admin");  
     
      
     static struct st_mysql_sys_var* settings[] = {
@@ -688,6 +775,27 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
         MYSQL_SYSVAR(bo_user),
         MYSQL_SYSVAR(bo_password),
         MYSQL_SYSVAR(use_spider),
+        MYSQL_SYSVAR(use_vmime),
+        MYSQL_SYSVAR(interval_send_schema),
+        MYSQL_SYSVAR(interval_send_query),
+        MYSQL_SYSVAR(interval_send_replication),
+        MYSQL_SYSVAR(interval_send_variable),
+        MYSQL_SYSVAR(interval_send_status),
+        MYSQL_SYSVAR(send_schema),
+        MYSQL_SYSVAR(send_query),
+        MYSQL_SYSVAR(send_replication),
+        MYSQL_SYSVAR(send_variable),
+        MYSQL_SYSVAR(send_status),
+        MYSQL_SYSVAR(send_dictionary),
+        MYSQL_SYSVAR(http_content),
+        MYSQL_SYSVAR(interval_get_schema),
+        MYSQL_SYSVAR(interval_get_query),
+        MYSQL_SYSVAR(interval_get_explain),
+        MYSQL_SYSVAR(interval_get_replication),
+        MYSQL_SYSVAR(interval_get_variable),
+        MYSQL_SYSVAR(interval_get_status),
+        MYSQL_SYSVAR(history_uptime),
+        
         NULL
     };
 

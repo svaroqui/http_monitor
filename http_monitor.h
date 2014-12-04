@@ -97,11 +97,33 @@ extern char use_aes_encrypt;
 extern char error_log;
 extern char send_mail;
 extern char use_spider;
+extern char use_vmime;
 extern char first_run;
 
 extern ulong conn_port;
 extern ulong history_length;
 extern ulong history_index;
+extern ulong history_uptime;
+extern ulong interval_send_query;
+extern ulong interval_send_schema;
+extern ulong interval_send_replication;
+extern ulong interval_send_variable;
+extern ulong interval_send_status;
+
+extern ulong interval_get_query;
+extern ulong interval_get_explain;
+extern ulong interval_get_schema;
+extern ulong interval_get_replication;
+extern ulong interval_get_variable;
+extern ulong interval_get_status;
+extern char send_query;
+extern char send_schema;
+extern char send_replication;
+extern char send_variable;
+extern char send_status;
+extern char http_content;
+extern char send_dictionary;
+    
 extern ST_SCHEMA_TABLE *i_s_http_monitor;
 extern ulong send_timeout, refresh_rate;
 extern Server **mysql_servers;

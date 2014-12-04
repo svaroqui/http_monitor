@@ -17,25 +17,21 @@
 #include "sys_tbl.h"
 
 #ifdef HAVE_NETDB_H
-#include <netdb.h>
 #endif
 #include <stdio.h>
 #include <string.h>
+#ifdef HTTP_MONITOR_HAVE_CURL
 #include <curl/curl.h>
+#include <base64.h>
+#endif
 #include <string>
 
-#include <base64.h>
-
+#include "vmime/vmime.hpp"
+#include "vmime/platforms/posix/posixHandler.hpp"
 
 namespace http_monitor {
 
-    /* This is send mail using libcurl's SMTP
-     * capabilities. It builds on the smtp-mail.c example to add authentication
-     * and, more importantly, transport security to protect the authentication
-     * details from being snooped.
-     *
-     * Note that this  requires libcurl 7.20.0 or above.
-     */
+  
 
 #define FROM    "<monitor@scrambledb.org>"
 #define TO      "<support@scrambledb.org>"
@@ -47,12 +43,11 @@ namespace http_monitor {
 #endif
 
 
-
+ 
     static const uint FOR_READING = 0;
     static const uint FOR_WRITING = 1;
         
-    static const char b64_table[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
+ 
     class Server_smtp : public Server {
     protected:
         const LEX_STRING host, port, path;
@@ -78,7 +73,8 @@ namespace http_monitor {
        
         friend Server* smtp_create(const char *url, size_t url_length);
     };
-
+#ifdef HTTP_MONITOR_HAVE_CURL
+    static const char b64_table[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     struct upload_status {
         int lines_read;
     };
@@ -86,6 +82,8 @@ namespace http_monitor {
     
     static const char* mail_data;
     static size_t mail_data_length;
+
+    
     static const int CHARS = 200; //Sending 54 chararcters at a time with \r , \n and \0 it becomes 57 
     static const int ADD_SIZE = 15; // ADD_SIZE for TO,FROM,SUBJECT,CONTENT-TYPE,CONTENT-TRANSFER-ENCODING,CONETNT-DISPOSITION and \r\n
     static const int SEND_BUF_SIZE = 54;
@@ -107,9 +105,43 @@ static const char reverse_table[128] = {
    64, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
    41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 64, 64, 64, 64, 64
 };
- 
+#endif 
+static vmime::shared_ptr <vmime::net::session> g_session
+	= vmime::make_shared <vmime::net::session>();
 
 
+class interactiveCertificateVerifier : public vmime::security::cert::defaultCertificateVerifier
+{
+public:
+
+	void verify(vmime::shared_ptr <vmime::security::cert::certificateChain> chain, const vmime::string& hostname)
+	{
+		try
+		{
+			setX509TrustedCerts(m_trustedCerts);
+
+			defaultCertificateVerifier::verify(chain, hostname);
+		}
+		catch (vmime::exceptions::certificate_verification_exception&)
+		{
+			return;
+		}
+	}
+
+private:
+
+	static std::vector <vmime::shared_ptr <vmime::security::cert::X509Certificate> > m_trustedCerts;
+};
+
+
+
+
+
+std::vector <vmime::shared_ptr <vmime::security::cert::X509Certificate> >
+	interactiveCertificateVerifier::m_trustedCerts;
+
+
+#ifdef HTTP_MONITOR_HAVE_CURL
 
 std::string base64_encode(const ::std::string &bindata)
 {
@@ -372,13 +404,15 @@ std::string base64_encode(const ::std::string &bindata)
         return 0;
     }
     
+#endif 
+
     /**
       create a Server_smtp object out of the url, if possible.
 
       @note
       Arbitrary limitations here.
 
-      The url must be http[s]://hostname[:port]/path
+      The url must be smtp[s]://hostname[:port]
       No username:password@ or ?script=parameters are supported.
 
       But it's ok. This is not a generic purpose www browser - it only needs to be
@@ -444,10 +478,17 @@ std::string base64_encode(const ::std::string &bindata)
 
         return new Server_smtp(full_url, host, port, path, ssl);
     }
+    
+    
 
     int Server_smtp::send(const char* data, size_t data_length) {
 
         sql_print_information("http_monitor sending email ");
+        if (! http_monitor::use_vmime) {
+            
+            
+        
+ #ifdef HTTP_MONITOR_HAVE_CURL        
         CURL *curl;
         CURLcode res = CURLE_OK;
         struct curl_slist *recipients = NULL;
@@ -501,6 +542,112 @@ std::string base64_encode(const ::std::string &bindata)
                 full_url.str);
         attach_rows.empty();
         return (int) res;
+ #endif   
+
+        }
+        else {
+            
+            try
+	{
+		std::locale::global(std::locale(""));
+	}
+	catch (std::exception &)
+	{
+		std::setlocale(LC_ALL, "");
+	}
+
+	try
+	{
+		
+            
+            
+                vmime::shared_ptr <vmime::net::transport> tr;
+                String mail_server=0;
+                mail_server.append(full_url.str);
+            
+                vmime::utility::url url(mail_server.c_ptr());
+            	tr = g_session->getTransport(url);
+		// Enable TLS support if available
+		tr->setProperty("connection.tls", true);
+		// Set the time out handler
+	//	tr->setTimeoutHandlerFactory(vmime::make_shared <vmime::net::timeoutHandlerFactory>());
+                if (smtp_authentification){
+                  tr->setProperty("auth.username", smtp_user);
+                  tr->setProperty("auth.password", smtp_password);
+                  tr->setProperty("options.need-authentication", true);
+                } else
+                {
+                    
+                   tr->setProperty("options.need-authentication", false);
+                }    
+                
+                
+                tr->setCertificateVerifier
+			(vmime::make_shared <interactiveCertificateVerifier>());
+                vmime::messageBuilder mb;
+                
+                mb.setExpeditor(vmime::mailbox(smtp_email_from));
+                vmime::addressList to;
+		to.appendAddress(vmime::make_shared <vmime::mailbox>(smtp_email_to));
+                mb.setRecipients(to);
+                mb.setSubject(vmime::text("HTTP Monitor"));
+
+                 mb.getTextPart()->setText(vmime::make_shared <vmime::stringContentHandler>(
+			data));            
+ 
+ 
+          /*      vmime::shared_ptr <vmime::fileAttachment> a = vmime::make_shared <vmime::fileAttachment >
+		(
+			
+                          
+                        vmime::word("name") ,
+			vmime::mediaType("application/octet-stream"),   // content type
+			  vmime::text("json")            // description
+		);
+
+		a->getFileInfo().setFilename("monitor-infos.json");
+		a->getFileInfo().setCreationDate(vmime::datetime("30 Apr 2003 14:30:00 +0200"));
+
+                
+		mb.appendAttachment(a);
+           * /
+                
+/*		// Construction
+		vmime::shared_ptr <vmime::message> msg = mb.construct();
+
+		// Raw text generation
+		vmime::string dataToSend = msg->generate();
+
+		std::cout << "Generated message:" << std::endl;
+		std::cout << "==================" << std::endl;
+		std::cout << std::endl;
+		std::cout << dataToSend << std::endl;
+*/
+                if(error_log)  sql_print_information("http_monitor plugin: vmine before connect") ;
+                
+                tr->connect();
+                if(error_log) sql_print_information("http_monitor plugin: vmine before send") ;
+  
+                tr->send(mb.construct());
+  	}
+	// VMime exception
+	catch (vmime::exception& e)
+	{
+		std::cout << "vmime::exception: " << e.what() << std::endl;
+		//throw;
+	}
+	// Standard exception
+	catch (std::exception& e)
+	{
+		std::cout << "std::exception: " << e.what() << std::endl;
+		//throw;
+	}
+
+	std::cout << std::endl;
+        }
+         return (int) 0;        
+            
+       
     }
     
    
