@@ -53,7 +53,7 @@ Log
  
 Caching Collection 
 ------------------
-We are not sending information to the back office at every collection we keep them in the monitor for while and store only values that are changing. The default is fine but this can be adjusted if you workload consume to many bandwidth.  
+Monitor is not sending trends to the back office for every collection, they are cached in the monitor for while and store only changing values. The default values should be fine but can be adjusted when workload consume to many bandwidth.  
 
 - http_monitor_history_length=100  
     Number of entry to keep in history queue 
@@ -62,7 +62,7 @@ We are not sending information to the back office at every collection we keep th
 
 Who you are? 
 -----------
-The "Back Office" www.scrmabledb.org keep track in an encrypted database. 
+The "Back Office" www.scrambledb.org keep track of trends in some encrypted database. 
 We need a way to contact you to send alerts!
      
 - http_monitor_node_group=laptop
