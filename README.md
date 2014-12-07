@@ -23,28 +23,34 @@ Compile MariaDB
 cmake -DCMAKE_INSTALL_PREFIX=/usr/local/mariadb-monitoring-10.0.15 -DWITH_JEMALLOC=yes -DWITH_SSL=yes  .
 make install  
  
-Minimum configuration for the monitored backend
-----------------------------------------------
+Minimum configuration for the monitored servers 
+-----------------------------------------------
 performance_schema=1
 
 Define a user with super privilege on all backend you need to monitor  
  
-MariaDB> INSTALL PLUGIN http_monitor SONAME 'http_monitor.so'; 
- 
-Configuration 
--------------
 
-Define all backend MariaDB servers to be monitored:
-  
+Mininum configuration for the monitor  
+-------------------------------------
+
+MariaDB> INSTALL PLUGIN spider SONAME 'ha_spider.so'; 
+MariaDB> INSTALL PLUGIN http_monitor SONAME 'http_monitor.so'; 
+
+event_scheduler=1
+
+Define all backend MariaDB servers to be monitored:  
 http_monitor_node_address=mysql://192.168.0.202:5054/backend2,mysql://192.168.0.203:5012/backend1,mysql://192.168.0.203:5054/backend3
 
-The monitor use a connection to himself same user should be define in the monitor database and on remote backends, make sure that required information to etablish the connection locally is define.
+The monitor use a connection to himself same user should be define in the monitor database and on remote backends, make sure that required information to etablish the local connection is defined.
 
 - http_monitor_conn_host 
 - http_monitor_conn_password 
 - http_monitor_conn_port 
 - http_monitor_conn_socket 
 - http_monitor_conn_user 
+
+Optional configuation options
+-----------------------------
  
 Log 
 ---
