@@ -14,7 +14,8 @@ libxml2
 libcurl  
 libssl 
 libgsasl 
-libgnutls
+gnutls
+boost
 libiconv
 libicu
 
