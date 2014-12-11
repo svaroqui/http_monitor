@@ -56,6 +56,7 @@ namespace http_monitor {
     char *port = 0;
     char *aes_key = 0; 
     char *salt_key = 0;
+    ulong hash_len;
     char *notification_email=0;
     char *bo_user=0;
     char *bo_password=0;
@@ -97,7 +98,7 @@ namespace http_monitor {
     ulong history_length;
     ulong history_uptime;
     ulong history_index;
-   
+ 
     Server **mysql_servers; ///< list of servers to monitor
     uint mysql_servers_count;
     Server **smtp_servers; ///< list of servers to send the report to by smtp
@@ -439,8 +440,10 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
         
         if (calculate_server_uid(server_uid_buf))
             return 1;
-        salt_key = strdup(server_uid_buf);
-        aes_key = strdup(server_uid_buf);
+        if (strcmp(salt_key,"" ) ==0) 
+         salt_key = strdup(server_uid_buf);
+        if (strcmp(aes_key,"" ) ==0) 
+         aes_key = strdup(server_uid_buf);
         bo_password  = strdup(server_uid_buf);
         prepare_linux_info();
 
@@ -631,10 +634,10 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
             NULL, NULL,0);
      static MYSQL_SYSVAR_STR(aes_key, aes_key,PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "AES Ecrypt key for non SSH/TLS messages",
-            NULL, NULL,  "mysecretkey");
+            NULL, NULL,  "");
      static MYSQL_SYSVAR_STR(salt_key, salt_key,PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Salt key to anonymize meta data string ",
-            NULL, NULL,  "mysecretsalt");
+            NULL, NULL,  "");
      static MYSQL_SYSVAR_BOOL(use_spider, use_spider,PLUGIN_VAR_OPCMDARG,
             "Shoud use spider storage engine to access remote nodes default is spider off use federatedx",
             NULL, NULL,1);
@@ -662,7 +665,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
      static MYSQL_SYSVAR_BOOL(http_content, http_content,PLUGIN_VAR_OPCMDARG,
             "Produce content for http interface",
             NULL, NULL,0);
-      static MYSQL_SYSVAR_ULONG(history_uptime, history_uptime, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+     static MYSQL_SYSVAR_ULONG(history_uptime, history_uptime, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Number of wakeup every refresh rate",
             NULL, NULL, 1, 1, 60*60*24, 1); 
      static MYSQL_SYSVAR_ULONG(refresh_rate, refresh_rate, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
@@ -702,6 +705,9 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
      static MYSQL_SYSVAR_ULONG(interval_get_status, interval_get_status, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Get status informations interval in in seconds",
             NULL, NULL, 2, 1, 60*60*24, 2); 
+     static MYSQL_SYSVAR_ULONG(hash_len, hash_len, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+            "SHA2 hash length",
+            NULL, NULL, 256, 1, 60*60*24, 256); 
      static MYSQL_SYSVAR_BOOL(error_log, error_log,   PLUGIN_VAR_OPCMDARG, 
             "Trace execution to error log.", 
             NULL, NULL,0);
@@ -756,6 +762,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
         MYSQL_SYSVAR(send_mail),
         MYSQL_SYSVAR(aes_key),
         MYSQL_SYSVAR(salt_key),
+        MYSQL_SYSVAR(hash_len),
         MYSQL_SYSVAR(conn_user),
         MYSQL_SYSVAR(conn_password),
         MYSQL_SYSVAR(conn_host),
