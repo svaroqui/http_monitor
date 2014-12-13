@@ -19,10 +19,13 @@
 #include "sql_show.h"
 #include "handler.h" 
 #include "set_var.h"
-#ifdef HAVE_OPENSSL
+
+
+#ifdef HTTP_MONITOR_HAVE_OPENSSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #endif
+
 
 /* MySQL functions/variables not declared in mysql_priv.h */
 int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond);
@@ -153,7 +156,7 @@ namespace http_monitor {
     
     
     
-#ifdef HAVE_OPENSSL
+#ifdef HTTP_MONITOR_HAVE_OPENSSL
 #define SSL_MUTEX_TYPE       pthread_mutex_t
 #define SSL_MUTEX_SETUP(x,y) pthread_mutex_init(&(x),&(y))
 #define SSL_MUTEX_CLEANUP(x) pthread_mutex_destroy(&(x))
@@ -430,7 +433,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
         PSI_register(mutex);
         PSI_register(cond);
         PSI_register(thread);
-        #ifdef HAVE_OPENSSL
+        #ifdef HTTP_MONITOR_HAVE_OPENSSL
         InitOpenSSL(true);        
         #endif
         // Prepare callbacks structure. We have only one callback, the rest are NULL.
@@ -566,7 +569,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
        plugin deinitialization function
      */
     static int free(void *p) {
-        #ifdef HAVE_OPENSSL
+        #ifdef HTTP_MONITOR_HAVE_OPENSSL
         CloseOpenSSL();
         #endif
         if (mysql_servers_count) {

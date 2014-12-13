@@ -16,8 +16,8 @@
 #define MYSQL_SERVER 1
 #include <sql_class.h>
 #include "mongoose.h"
-#include <openssl/ssl.h>
-#include <openssl/err.h>
+//#include <openssl/ssl.h>
+//#include <openssl/err.h>
 
 namespace http_monitor {
 
