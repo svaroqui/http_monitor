@@ -37,9 +37,8 @@ Mininum configuration for the monitor
 MariaDB> INSTALL PLUGIN spider SONAME 'ha_spider.so'; 
 MariaDB> INSTALL PLUGIN http_monitor SONAME 'http_monitor.so'; 
 
-event_scheduler=1
-
 Define all backend MariaDB servers to be monitored:  
+
 http_monitor_node_address=mysql://192.168.0.202:5054/backend2,mysql://192.168.0.203:5012/backend1,mysql://192.168.0.203:5054/backend3
 
 The monitor use a connection to himself same user should be define in the monitor database and on remote backends, make sure that required information to etablish the local connection is defined.
