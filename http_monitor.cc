@@ -99,6 +99,7 @@ namespace http_monitor {
     char send_dictionary;
     char http_content;
     ulong history_length;
+    
     ulong history_uptime;
     ulong history_index;
  
@@ -671,30 +672,36 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
      static MYSQL_SYSVAR_ULONG(history_uptime, history_uptime, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Number of wakeup every refresh rate",
             NULL, NULL, 1, 1, 60*60*24, 1); 
-     static MYSQL_SYSVAR_ULONG(refresh_rate, refresh_rate, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+     static MYSQL_SYSVAR_ULONG(history_index, history_index,  PLUGIN_VAR_RQCMDARG,
+            "Number of wakeup every refresh rate",
+            NULL, NULL, 0, 0, 60*60*24, 1); 
+     static MYSQL_SYSVAR_ULONG(history_length, history_length, PLUGIN_VAR_RQCMDARG,
+            "Numbers of metrics to keep in history",
+            NULL, NULL, 10, 1,1024, 1);
+     static MYSQL_SYSVAR_ULONG(refresh_rate, refresh_rate,  PLUGIN_VAR_RQCMDARG,
             "Wait in seconds before gathering information",
-            NULL, NULL, 10, 1, 60*60*24, 10); 
+            NULL, NULL, 10, 1, 60*60*24, 1); 
      static MYSQL_SYSVAR_ULONG(interval_send_query, interval_send_query, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Email queries after x refresh rate",
-            NULL, NULL, 30, 1, 60*60*24, 30); 
+            NULL, NULL, 30, 1, 60*60*24, 1); 
      static MYSQL_SYSVAR_ULONG(interval_send_schema, interval_send_schema, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Send schema informations interval in refresh rate",
-            NULL, NULL, 80, 1, 60*60*24, 80); 
+            NULL, NULL, 80, 1, 60*60*24, 1); 
      static MYSQL_SYSVAR_ULONG(interval_send_replication, interval_send_replication, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Send replication informations interval in refresh rate",
             NULL, NULL, 1, 1, 60*60*24, 1); 
      static MYSQL_SYSVAR_ULONG(interval_send_variable, interval_send_variable, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Send variable informations interval in refresh rate",
-            NULL, NULL, 60, 1, 60*60*24, 60); 
+            NULL, NULL, 60, 1, 60*60*24, 1); 
      static MYSQL_SYSVAR_ULONG(interval_send_status, interval_send_status, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Send status informations interval in refresh rate ",
-            NULL, NULL, 2, 1, 60*60*24, 2);
+            NULL, NULL, 2, 1, 60*60*24, 1);
      static MYSQL_SYSVAR_ULONG(interval_get_query, interval_get_query, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Get queries interval in seconds",
-            NULL, NULL, 120, 1, 60*60*24, 120); 
+            NULL, NULL, 120, 1, 60*60*24, 1); 
      static MYSQL_SYSVAR_ULONG(interval_get_explain, interval_get_explain, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Get explain informations interval in seconds",
-            NULL, NULL, 300, 1, 60*60*24, 300); 
+            NULL, NULL, 300, 1, 60*60*24, 1); 
      static MYSQL_SYSVAR_ULONG(interval_get_schema, interval_get_schema, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Get schema informations interval in seconds",
             NULL, NULL, 120, 1, 60*60*24, 80); 
@@ -732,9 +739,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
      static MYSQL_SYSVAR_STR(conn_socket, conn_socket, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "MariaDB external connection host",
             NULL, NULL, ""); 
-     static MYSQL_SYSVAR_ULONG(history_length, history_length, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
-            "Numbers of metrics to keep in history",
-            NULL, NULL, 8, 1,1024, 1);
+    
      static MYSQL_SYSVAR_STR(node_name, node_name, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "Human readable instance name",
             NULL, NULL, ""); 
@@ -772,6 +777,8 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
         MYSQL_SYSVAR(conn_port),
         MYSQL_SYSVAR(conn_socket),
         MYSQL_SYSVAR(history_length),
+        MYSQL_SYSVAR(history_index),
+        MYSQL_SYSVAR(history_uptime),
         MYSQL_SYSVAR(smtp_address),
         MYSQL_SYSVAR(smtp_user),
         MYSQL_SYSVAR(smtp_password),
@@ -804,8 +811,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
         MYSQL_SYSVAR(interval_get_replication),
         MYSQL_SYSVAR(interval_get_variable),
         MYSQL_SYSVAR(interval_get_status),
-        MYSQL_SYSVAR(history_uptime),
-        
+     
         NULL
     };
 
