@@ -17,24 +17,24 @@
 
 
 #include <mysql.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <mysql_version.h>
-#include <sql_parse.h>
-#include <sql_class.h>
-//#include <sql_base.h>
-//#include <sql_time.h>
+//#include <stdio.h>
+//#include <stdlib.h>
+//#include <mysql_version.h>
+//#include <sql_parse.h>
+//#include <sql_class.h>
+////#include <sql_base.h>
+////#include <sql_time.h>
 #include <sql_string.h>
 #include <sql_list.h>
 #include <records.h>
 #include <mysql/plugin.h>
 #include <key.h>
-#include <log.h>
-//#include <sql_insert.h>
+//#include <log.h>
+////#include <sql_insert.h>
 #include "sys_tbl.h"
 #include "http_monitor.h"
-#include <string>
-#include <iostream>
+//#include <string>
+//#include <iostream>
 
 
 namespace http_monitor {
@@ -177,7 +177,9 @@ int loadHttpContentConn() {
     }
 
     updateContent(&conn);
-    status = mysql_query(&conn, (char*) "SELECT * FROM monitor_schema.http_contents");
+    String query=0;
+    query.append((char*) "SELECT * FROM monitor_schema.http_contents");
+    status = mysql_real_query(&conn, query.ptr() ,query.length());
     if (status) {
         sql_print_error("Could not execute statement(s)");
         mysql_close(&conn);
@@ -216,7 +218,7 @@ int loadHttpContentConn() {
 }
 
 
-
+/*
 int runQuery(THD *thd,  char *query ) {
     
     thd->set_query(query, strlen(query));
@@ -233,14 +235,14 @@ int runQuery(THD *thd,  char *query ) {
     mysql_parse(thd, thd->query(), strlen(thd->query()), &parser_state);
     return 0;  
 }
-
+*/
 
 int runQueryConn(MYSQL* conn,  String *query ) {
     if(conn == (MYSQL*) NULL) return 1;
     int status =0; 
     if (error_log)
       sql_print_information("Http Monitor *runQueryConn*: %s",query->c_ptr() );
-    status = mysql_query(conn,query->c_ptr());
+    status = mysql_real_query(conn,query->ptr(),query->length());
     return status;  
 }
 

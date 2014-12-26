@@ -9,19 +9,20 @@ Install
 Download MariaDB 10 tar.gz source code at https://downloads.mariadb.org/ 
 Download http_monitor tar.gz and install it under the plugin directory of the server 
 
-The plugin required following dependencies  
+The plugin required following dependencies to compile   
+cmake
+gcc-c++
 libxml2
-libcurl  
-libssl 
+#libcurl  
+libopenssl or gnutls  
 libgsasl 
-gnutls
 boost
 libiconv
 libicu
 
 Compile MariaDB 
  
-cmake -DCMAKE_INSTALL_PREFIX=/usr/local/mariadb-monitoring-10.0.15 -DWITH_JEMALLOC=yes -DWITH_SSL=yes  .
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local/mariadb-monitoring-10.0.15 -DWITHOUT_INNODB -DWITHOUT_TOKUDB -DWITHOUT_MROONGA -DWITHOUT_OQGRAPH=1 -DWITHOUT_FEDERATEDX=1 -DWITHOUT_XTRADB=1 -DWITHOUT_SPHINX=1 -DWITHOUT_BLACHOLE=1 -DWITH_JEMALLOC=yes -DWITH_SSL=yes  .
 make install  
  
 Minimum configuration for the monitored servers 
