@@ -284,9 +284,11 @@ static void send_report(const char *when)
     HTTP_REPORT.copy(str);
     
     
+    sql_print_information("http_monitor *send_report*:  %ul  ",http_monitor::history_index);
+    if ( http_monitor::history_length-1< http_monitor::history_index && send_mail) {
+        http_monitor::history_index=0;
+        http_monitor::history_uptime++;
     
-    if ( http_monitor::history_length-1== http_monitor::history_index && send_mail) {
-    http_monitor::history_uptime++;
     Server **nodes= (Server**)alloca(mysql_servers_count*sizeof(Server*));
     memcpy(nodes, mysql_servers, mysql_servers_count*sizeof(Server*));
    
