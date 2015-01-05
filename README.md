@@ -28,7 +28,8 @@ Compile MariaDB
  
 Minimum configuration for the monitored servers 
 -----------------------------------------------
-performance_schema=1
+
+    performance_schema=1
 
 Define a user with super privilege on all backend you need to monitor  
  
