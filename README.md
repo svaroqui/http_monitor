@@ -9,7 +9,8 @@ Install
 Download MariaDB 10 tar.gz source code at https://downloads.mariadb.org/ 
 Download http_monitor tar.gz and install it under the plugin directory of the server 
 
-The plugin required following dependencies to compile   
+The plugin required following dependencies to compile
+
     cmake
     gcc-c++
     libxml2
