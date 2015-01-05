@@ -10,20 +10,20 @@ Download MariaDB 10 tar.gz source code at https://downloads.mariadb.org/
 Download http_monitor tar.gz and install it under the plugin directory of the server 
 
 The plugin required following dependencies to compile   
-cmake
-gcc-c++
-libxml2
-#libcurl  
-libopenssl or gnutls  
-libgsasl 
-boost
-libiconv
-libicu
+    cmake
+    gcc-c++
+    libxml2
+    #libcurl  
+    libopenssl or gnutls  
+    libgsasl 
+    boost
+    libiconv
+    libicu
 
 Compile MariaDB 
  
-cmake -DCMAKE_INSTALL_PREFIX=/usr/local/mariadb-monitoring-10.0.15 -DWITHOUT_INNODB -DWITHOUT_TOKUDB -DWITHOUT_MROONGA -DWITHOUT_OQGRAPH=1 -DWITHOUT_FEDERATEDX=1 -DWITHOUT_XTRADB=1 -DWITHOUT_SPHINX=1 -DWITHOUT_BLACHOLE=1 -DWITH_JEMALLOC=yes -DWITH_SSL=yes  .
-make install  
+    cmake -DCMAKE_INSTALL_PREFIX=/usr/local/mariadb-monitoring-10.0.15 -DWITHOUT_INNODB=1 -DWITHOUT_TOKUDB=1 -DWITHOUT_MROONGA=1 -DWITHOUT_OQGRAPH=1 -DWITHOUT_FEDERATEDX=1 -DWITHOUT_XTRADB=1 -DWITHOUT_SPHINX=1 -DWITHOUT_BLACHOLE=1 -DWITH_JEMALLOC=yes -DWITH_SSL=yes  .
+    make install  
  
 Minimum configuration for the monitored servers 
 -----------------------------------------------
@@ -35,8 +35,8 @@ Define a user with super privilege on all backend you need to monitor
 Mininum configuration for the monitor  
 -------------------------------------
 
-MariaDB> INSTALL PLUGIN spider SONAME 'ha_spider.so'; 
-MariaDB> INSTALL PLUGIN http_monitor SONAME 'http_monitor.so'; 
+    MariaDB> INSTALL PLUGIN spider SONAME 'ha_spider.so'; 
+    MariaDB> INSTALL PLUGIN http_monitor SONAME 'http_monitor.so'; 
 
 Define all backend MariaDB servers to be monitored:  
 
