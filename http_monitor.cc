@@ -77,7 +77,7 @@ namespace http_monitor {
     char *smtp_password = 0;
    
     
-    ulong conn_port=3306; 
+    uint conn_port=3306; 
     ulong send_timeout; 
     ulong refresh_rate;
     ulong interval_send_query;
@@ -623,7 +623,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
             "monitor@scrambledb.org");
      static MYSQL_SYSVAR_STR(smtp_email_to, smtp_email_to, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "smtp email TO field", NULL, NULL,
-            "support@scrambledb.org");
+            "monitor@scrambledb.org");
      static MYSQL_SYSVAR_STR(smtp_password, smtp_password, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "smtp password login", NULL, NULL,
             "support");
@@ -733,7 +733,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
      static MYSQL_SYSVAR_STR(conn_host, conn_host, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
             "MariaDB external connection host",
             NULL, NULL, "127.0.0.1"); 
-     static MYSQL_SYSVAR_ULONG(conn_port, conn_port, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+     static MYSQL_SYSVAR_UINT(conn_port, conn_port, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
            "MariaDB external connection port",
             NULL, NULL, 3306, 1000, 32000, 1);
      static MYSQL_SYSVAR_STR(conn_socket, conn_socket, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,

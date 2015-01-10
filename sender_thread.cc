@@ -30,8 +30,8 @@ static my_thread_id thd_thread_id; ///< its thread_id
 
 static size_t needed_size= 20480;
 
-static const time_t startup_interval= 0;     ///< in seconds (5 minutes)
-static const time_t first_interval= 0;   ///< in seconds (one day)
+static const time_t startup_interval= 20;     ///< in seconds (5 minutes)
+static const time_t first_interval= 20;   ///< in seconds (one day)
 
 //static const time_t first_interval= 60*60*24;   ///< in seconds (one day)
 //static const time_t interval= 60*60*24*7;       ///< in seconds (one week)
@@ -448,7 +448,7 @@ pthread_handler_t background_thread(void *arg __attribute__((unused)))
   thd_thread_id= thread_id++;
   mysql_mutex_unlock(&LOCK_thread_count);
 
-  if (slept_ok(refresh_rate))
+  if (slept_ok(startup_interval))
   {
 
     if (slept_ok(refresh_rate))

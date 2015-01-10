@@ -100,7 +100,7 @@ extern char use_spider;
 extern char use_vmime;
 extern char first_run;
 
-extern ulong conn_port;
+extern uint conn_port;
 extern ulong history_length;
 extern ulong history_index;
 extern ulong history_uptime;
