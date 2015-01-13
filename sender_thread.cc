@@ -229,59 +229,22 @@ static int slept_ok(time_t sec)
   If "when" argument is not null, only it and the server uid are sent.
   Otherwise a full report is generated.
 */
-static void send_report(const char *when)
+static void send_report()
 {
   TABLE_LIST tables;
   int i, last_todo;
  
-  String str; 
-  str.alloc(needed_size); // preallocate it to avoid many small mallocs
-   
-  /*
-    on startup and shutdown the server may not be completely
-    initialized, and full report won't work.
-    We send a short status notice only.
-  */
-  if (when)
-  {
-    str.length(0);
-    str.append(STRING_WITH_LEN("FEEDBACK_SERVER_UID"));
-    str.append('\t');
-    str.append(server_uid_buf);
-    str.append('\n');
-    str.append(STRING_WITH_LEN("FEEDBACK_WHEN"));
-    str.append('\t');
-    str.append(when);
-    str.append('\n');
-    str.append(STRING_WITH_LEN("FEEDBACK_USER_INFO"));
-    str.append('\t');
-    str.append('\n');
-  }
-  else
-  {
-    /*
-      otherwise, prepare the THD and TABLE_LIST,
-      create and fill the temporary table with data just like
-      SELECT * FROM IFROEMATION_SCHEMA.http_monitor is doing,
-      read and concatenate table data into a String.
-    */
     if (!(thd= new THD()))
       return;
       
     if (prepare_for_fill(&tables))
       goto ret;
 
-   /* if (fill_http_monitor(thd, &tables, NULL))
-      goto ret;
-
-    if (table_to_json(tables.table, &str))
-      goto ret;
-*/
-    needed_size= (size_t)(str.length() * 1.1);
+ 
    
     loadContent(thd);
  
-    HTTP_REPORT.copy(str);
+    HTTP_REPORT.free();
     
     
     if(error_log) sql_print_information("http_monitor *send_report*:  %l  ",http_monitor::history_index);
@@ -412,7 +375,7 @@ static void send_report(const char *when)
     if (tables.table)
         free_tmp_table(thd, tables.table);
     tables.table= 0;
-  }
+  
 
   
   
@@ -454,10 +417,10 @@ pthread_handler_t background_thread(void *arg __attribute__((unused)))
 
     if (slept_ok(refresh_rate))
     {
-      send_report(NULL);
+      send_report();
       first_run=0;
       while(slept_ok(refresh_rate))
-        send_report(NULL);
+        send_report();
     }
 
    
