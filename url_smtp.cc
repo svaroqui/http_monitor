@@ -483,7 +483,6 @@ std::string base64_encode(const ::std::string &bindata)
 
     int Server_smtp::send(const char* data, size_t data_length) {
 
-        sql_print_information("http_monitor sending email ");
         if (! http_monitor::use_vmime) {
             
             

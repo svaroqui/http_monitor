@@ -669,7 +669,7 @@ static void SSLLockingFunction(int mode, int n, const char * file, int line)
      static MYSQL_SYSVAR_BOOL(http_content, http_content,PLUGIN_VAR_OPCMDARG,
             "Produce content for http interface",
             NULL, NULL,0);
-     static MYSQL_SYSVAR_ULONG(history_uptime, history_uptime, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
+     static MYSQL_SYSVAR_ULONG(history_uptime, history_uptime, PLUGIN_VAR_RQCMDARG,
             "Number of wakeup every refresh rate",
             NULL, NULL, 1, 1, 60*60*24, 1); 
      static MYSQL_SYSVAR_ULONG(history_index, history_index,  PLUGIN_VAR_RQCMDARG,

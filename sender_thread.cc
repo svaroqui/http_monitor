@@ -284,7 +284,7 @@ static void send_report(const char *when)
     HTTP_REPORT.copy(str);
     
     
-    sql_print_information("http_monitor *send_report*:  %ul  ",http_monitor::history_index);
+    if(error_log) sql_print_information("http_monitor *send_report*:  %l  ",http_monitor::history_index);
     if ( http_monitor::history_length-1< http_monitor::history_index && send_mail) {
         http_monitor::history_index=0;
         http_monitor::history_uptime++;
@@ -409,7 +409,8 @@ static void send_report(const char *when)
 
       }
     }
-    free_tmp_table(thd, tables.table);
+    if (tables.table)
+        free_tmp_table(thd, tables.table);
     tables.table= 0;
   }
 
@@ -459,7 +460,7 @@ pthread_handler_t background_thread(void *arg __attribute__((unused)))
         send_report(NULL);
     }
 
-    send_report("shutdown");
+   
   }
 
   my_thread_end();
