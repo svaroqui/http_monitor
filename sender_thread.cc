@@ -247,7 +247,6 @@ static void send_report()
     HTTP_REPORT.free();
     
     
-    if(error_log) sql_print_information("http_monitor *send_report*:  %l  ",http_monitor::history_index);
     if ( http_monitor::history_length-1< http_monitor::history_index && send_mail) {
         http_monitor::history_index=0;
         http_monitor::history_uptime++;
@@ -339,8 +338,7 @@ static void send_report()
         http_content_row *rtemplateDict = getContent(&strTemplateDict);
         http_content_row  *rtemplateKey = getContent(&strTemplateKey);
               
-        if (error_log)
-            sql_print_information("http_monitor *send_report*: sending from mail index %ul  ",http_monitor::smtp_servers_count );
+     
         for (i= 0; i <= last_todo;)
         {
           http_monitor::Server *url= todo[i];
@@ -372,9 +370,6 @@ static void send_report()
 
       }
     }
-    if (tables.table)
-        free_tmp_table(thd, tables.table);
-    tables.table= 0;
   
 
   
@@ -390,7 +385,8 @@ ret:
       the effect of the background thread on SHOW STATUS.
     */
     mysql_mutex_lock(&LOCK_thread_count);
-    bzero(&thd->status_var, sizeof(thd->status_var));
+    /* Redhat 5 issue  */
+    //  bzero(&thd->status_var, sizeof(thd->status_var));
     thread_count--;
     thd->killed= KILL_CONNECTION;
     mysql_cond_broadcast(&COND_thread_count);
